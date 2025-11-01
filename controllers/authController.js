@@ -50,9 +50,12 @@ class AuthController {
         });
       }
 
-      const { userId, accountId, backToUrl } = decoded;
+      // Estrai e converti userId a stringa per il database Prisma
+      const { userId: rawUserId, accountId: rawAccountId, backToUrl } = decoded;
+      const userId = String(rawUserId);
+      const accountId = String(rawAccountId);
 
-      console.log('[AuthController] Decoded JWT backToUrl:', backToUrl);
+      console.log('[AuthController] Decoded JWT - userId:', userId, '(type: string), accountId:', accountId, 'backToUrl:', backToUrl);
 
       if (!userId || !accountId) {
         return res.status(400).json({
@@ -307,14 +310,18 @@ class AuthController {
   static async saveCredentials(req, res) {
     try {
       const {
-        userId,
-        accountId,
+        userId: rawUserId,
+        accountId: rawAccountId,
         email,
         password,
         smtp_host,
         smtp_port,
         backToUrl
       } = req.body;
+
+      // Converti userId e accountId a stringa per il database
+      const userId = String(rawUserId);
+      const accountId = String(rawAccountId);
 
       // Validazione input
       if (!userId || !accountId) {

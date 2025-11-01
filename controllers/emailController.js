@@ -118,15 +118,17 @@ class EmailController {
 
     try {
       // Estrai userId dal middleware di autenticazione
-      userId = req.monday?.userId;
+      const rawUserId = req.monday?.userId;
+      // Converti userId a stringa per il database Prisma
+      userId = String(rawUserId);
 
       // ===== DETAILED REQUEST LOGGING =====
       console.log('=== SEND EMAIL REQUEST ===');
-      console.log('UserId:', userId);
+      console.log('UserId:', userId, '(type: string)');
       console.log('Payload:', JSON.stringify(req.body, null, 2));
       console.log('==========================');
 
-      if (!userId) {
+      if (!userId || userId === 'undefined') {
         return res.status(400).json({
           success: false,
           error: 'User ID mancante',
