@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const UserCredentials = require('../models/UserCredentials');
+const IntegrationCredentials = require('../models/IntegrationCredentials');
 const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
 
 /**
@@ -283,7 +282,7 @@ class AuthController {
    * Salva le credenziali dell'utente
    * POST /monday/save-credentials
    */
-  static saveCredentials(req, res) {
+  static async saveCredentials(req, res) {
     try {
       const {
         userId,
@@ -332,16 +331,17 @@ class AuthController {
 
       // Salva o aggiorna le credenziali
       try {
-        const existing = UserCredentials.findByUserId(userId);
+        const existing = await IntegrationCredentials.findByUserId(userId);
 
         if (existing) {
           // Aggiorna credenziali esistenti
-          UserCredentials.update(userId, {
+          await IntegrationCredentials.update(userId, {
             aruba_email: email.trim(),
             aruba_password: password,
             smtp_host: smtpHost,
             smtp_port: smtpPort
           });
+          await IntegrationCredentials.logAudit(userId, 'save-credentials', 'updated');
           logAuthSuccess({
             userId,
             accountId,
@@ -350,14 +350,15 @@ class AuthController {
           });
         } else {
           // Crea nuove credenziali
-          UserCredentials.create({
-            monday_user_id: userId,
-            monday_account_id: accountId,
+          await IntegrationCredentials.create({
+            userId,
+            accountId,
             aruba_email: email.trim(),
             aruba_password: password,
             smtp_host: smtpHost,
             smtp_port: smtpPort
           });
+          await IntegrationCredentials.logAudit(userId, 'save-credentials', 'created');
           logAuthSuccess({
             userId,
             accountId,
@@ -380,7 +381,7 @@ class AuthController {
         }
 
         // Default: ritorna JSON di successo
-        res.status(201).json({
+        return res.status(201).json({
           success: true,
           message: 'Credenziali salvate con successo',
           user: {
@@ -391,8 +392,8 @@ class AuthController {
         });
 
       } catch (error) {
-        if (error.message.includes('UNIQUE constraint failed')) {
-          return res.status(400).json({
+        if (error.code === 'P2002' || error.message.includes('UNIQUE constraint failed')) {
+          return res.status(409).json({
             error: 'Credenziali già presenti',
             message: 'Le credenziali per questo utente sono già state configurate'
           });
@@ -419,7 +420,7 @@ class AuthController {
    * POST /monday/getUserCredentials
    * Richiede: Authorization header con JWT valido
    */
-  static getUserCredentials(req, res) {
+  static async getUserCredentials(req, res) {
     try {
       const userId = req.monday?.userId;
 
@@ -430,7 +431,7 @@ class AuthController {
         });
       }
 
-      const credentials = UserCredentials.findByUserId(userId);
+      const credentials = await IntegrationCredentials.findByUserId(userId);
 
       if (!credentials) {
         return res.status(200).json({
@@ -442,8 +443,8 @@ class AuthController {
       // Ritorna credenziali senza password
       res.status(200).json({
         exists: true,
-        userId: credentials.monday_user_id,
-        accountId: credentials.monday_account_id,
+        userId: credentials.userId,
+        accountId: credentials.accountId,
         email: credentials.aruba_email,
         smtp_host: credentials.smtp_host,
         smtp_port: credentials.smtp_port,
@@ -465,7 +466,7 @@ class AuthController {
    * POST /monday/deleteUserCredentials
    * Richiede: Authorization header con JWT valido
    */
-  static deleteUserCredentials(req, res) {
+  static async deleteUserCredentials(req, res) {
     try {
       const userId = req.monday?.userId;
 
@@ -476,7 +477,7 @@ class AuthController {
         });
       }
 
-      const deleted = UserCredentials.delete(userId);
+      const deleted = await IntegrationCredentials.delete(userId);
 
       if (!deleted) {
         return res.status(404).json({
@@ -486,13 +487,14 @@ class AuthController {
       }
 
       console.log(`[AuthController] Credenziali eliminate per user: ${userId}`);
+      await IntegrationCredentials.logAudit(userId, 'delete-credentials', 'deleted');
       logAuthSuccess({
         userId,
         method: 'delete-credentials',
         source: 'Credentials Deletion'
       });
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: 'Credenziali eliminate con successo'
       });

@@ -1,7 +1,7 @@
 {
   "name": "monday-aruba-integration",
   "version": "1.0.0",
-  "description": "Monday.com - Aruba Mail Integration with Express.js, SQLite, and JWT authentication",
+  "description": "Monday.com - Aruba Mail Integration with Express.js, Supabase Postgres, and JWT authentication",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,7 +11,10 @@
     "test:jwt": "node test-jwt-validation.js",
     "test:auth": "node test-auth-endpoints.js",
     "test:email": "node test-email-endpoints.js",
-    "test:all": "echo '=== Running All Tests ===' && npm run test"
+    "test:all": "echo '=== Running All Tests ===' && npm run test",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate deploy"
   },
   "keywords": [
     "monday.com",
@@ -31,11 +34,15 @@
     "npm": ">=6.0.0"
   },
   "dependencies": {
-    "better-sqlite3": "^12.4.1",
+    "@prisma/client": "^6.18.0",
+    "@supabase/supabase-js": "^2.78.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.10"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
   }
 }

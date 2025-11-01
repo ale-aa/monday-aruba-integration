@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const UserCredentials = require('../models/UserCredentials');
+const IntegrationCredentials = require('../models/IntegrationCredentials');
 const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
 
 /**
@@ -147,7 +147,7 @@ class EmailController {
 
       // Recupera credenziali dell'utente dal database
       console.log(`[EmailController] Recuperando credenziali per user: ${userId}`);
-      const credentials = UserCredentials.findByUserIdWithPassword(userId);
+      const credentials = await IntegrationCredentials.findByUserIdWithPassword(userId);
 
       if (!credentials) {
         console.warn(`[EmailController] Credenziali non trovate per user: ${userId}`);
@@ -304,7 +304,7 @@ class EmailController {
       console.log(`[EmailController] Test SMTP per user: ${userId}`);
 
       // Recupera credenziali
-      const credentials = UserCredentials.findByUserIdWithPassword(userId);
+      const credentials = await IntegrationCredentials.findByUserIdWithPassword(userId);
 
       if (!credentials) {
         return res.status(401).json({

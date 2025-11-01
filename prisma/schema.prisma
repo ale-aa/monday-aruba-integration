@@ -1,0 +1,44 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Integration credentials for Monday.com + Aruba Mail
+model IntegrationCredentials {
+  id            Int       @id @default(autoincrement())
+  userId        String    @unique @db.VarChar(255)
+  accountId     String    @db.VarChar(255)
+  arubaEmail    String    @db.VarChar(255)
+  // Password is encrypted with AES-256-CBC before storing
+  arubaPassword String    @db.Text
+  smtpHost      String    @default("mail.aruba.it") @db.VarChar(255)
+  smtpPort      Int       @default(465)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("integration_credentials")
+}
+
+// Optional: Activity logs for auditing
+model AuditLog {
+  id        Int       @id @default(autoincrement())
+  userId    String    @db.VarChar(255)
+  action    String    @db.VarChar(100)
+  status    String    @db.VarChar(50)
+  message   String?   @db.Text
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

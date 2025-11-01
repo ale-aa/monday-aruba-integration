@@ -24,13 +24,13 @@ A complete Node.js/Express.js integration between Monday.com and Aruba Mail for 
 This project provides a secure bridge between Monday.com and Aruba Mail, allowing users to:
 
 1. **Authorize** their Aruba Mail credentials through a secure flow
-2. **Store** encrypted credentials in a SQLite database
+2. **Store** encrypted credentials in a Supabase Postgres database (via Prisma)
 3. **Send emails** via Aruba SMTP with full validation
 4. **Test SMTP** configuration to verify connectivity
 
 Built with:
 - **Express.js** - Web framework
-- **SQLite + better-sqlite3** - Secure credential storage
+- **Supabase Postgres + Prisma** - Managed credential storage
 - **AES-256-CBC** - Password encryption
 - **JWT** - Token-based authentication
 - **Nodemailer** - SMTP email sending
@@ -42,7 +42,7 @@ Built with:
 ✅ **Secure Credential Management**
 - AES-256-CBC encryption with PBKDF2 key derivation
 - Random IV for each password
-- Encrypted storage in SQLite database
+- Encrypted storage in Supabase Postgres (managed with Prisma)
 
 ✅ **JWT Authentication**
 - Separate validation for authorization (CLIENT_SECRET) and operations (SIGNING_SECRET)
@@ -150,9 +150,8 @@ curl http://localhost:3000/health
 ```
 monday-aruba-integration/
 ├── config/
-│   ├── database.js          # SQLite initialization
-│   ├── monday.js            # Monday.com config
-│   └── mail.js              # Aruba Mail config
+│   ├── monday.js            # Monday.com config helpers
+│   └── mail.js              # Aruba Mail config helpers
 ├── controllers/
 │   ├── authController.js    # Authorization logic
 │   └── emailController.js   # Email sending logic
@@ -162,17 +161,18 @@ monday-aruba-integration/
 │   ├── authLogger.js        # Secure logging utilities
 │   └── errorHandler.js      # Global error handling
 ├── models/
-│   └── UserCredentials.js   # Database model with encryption
+│   └── IntegrationCredentials.js   # Prisma wrapper with encryption helpers
 ├── routes/
 │   ├── auth.js              # Authorization endpoints
 │   └── email.js             # Email endpoints
+├── prisma/
+│   ├── schema.prisma        # Prisma schema targeting Supabase Postgres
+│   └── migrations/          # Prisma migration history (generated)
 ├── docs/
 │   ├── DATABASE.md          # Database documentation
 │   ├── AUTHORIZATION_FLOW.md# Authorization flow details
 │   ├── EMAIL_SERVICE.md     # Email API documentation
 │   └── MONDAY_SETUP.md      # Monday.com configuration
-├── data/
-│   └── monday_aruba.db      # SQLite database (auto-created)
 ├── .env                     # Environment variables (not in git)
 ├── .env.example             # Environment template
 ├── .gitignore               # Git exclusions
@@ -186,8 +186,8 @@ monday-aruba-integration/
 | File | Purpose |
 |------|---------|
 | `server.js` | Express app configuration and route registration |
-| `config/database.js` | SQLite initialization with encrypted credentials table |
-| `models/UserCredentials.js` | CRUD operations with AES-256-CBC encryption |
+| `prisma/schema.prisma` | Prisma data model for Supabase Postgres |
+| `models/IntegrationCredentials.js` | CRUD operations with AES-256-CBC encryption via Prisma |
 | `middleware/verifyMonday.js` | JWT validation using SIGNING_SECRET |
 | `controllers/authController.js` | Credential configuration and management |
 | `controllers/emailController.js` | Email sending and SMTP validation |
@@ -209,6 +209,14 @@ MONDAY_SIGNING_SECRET  # For authenticated operations
 
 # Encryption
 ENCRYPTION_KEY         # 32-byte hex string for AES-256-CBC
+
+# Supabase / Postgres
+DATABASE_URL           # Prisma connection string using Supabase pooled connection (port 6543)
+DIRECT_URL             # (Optional) Direct Postgres connection (port 5432) for migrations
+NEXT_PUBLIC_SUPABASE_URL     # Supabase project URL (exposed to Monday recipes if needed)
+NEXT_PUBLIC_SUPABASE_ANON_KEY# Supabase anon key (client-side usage)
+SUPABASE_SERVICE_ROLE_KEY    # Service role key for secure server-side operations
+SUPABASE_DB_SCHEMA           # Target schema (default: public)
 
 # Aruba SMTP (defaults provided)
 ARUBA_SMTP_HOST        # Default: mail.aruba.it
@@ -653,8 +661,8 @@ docker run -p 3000:3000 \
    - Use secure cookies
 
 4. **Database Backups**
-   - Regular SQLite backups
-   - Encrypted backup storage
+   - Ensure Supabase PITR/backups are enabled
+   - Store exported snapshots securely (encrypted at rest)
 
 5. **Monitoring**
    - Error tracking (Sentry)
@@ -747,11 +755,19 @@ npm start
 
 ## Documentation
 
-Complete documentation for each component:
+### 🚀 Supabase & Deployment (NEW)
 
 | Document | Content |
 |----------|---------|
-| [DATABASE.md](./docs/DATABASE.md) | Database schema, encryption, CRUD operations |
+| [SUPABASE_MIGRATION.md](./docs/SUPABASE_MIGRATION.md) | Complete guide: Setup Supabase, migrate from SQLite, configure Prisma |
+| [SUPABASE_CHECKLIST.md](./SUPABASE_CHECKLIST.md) | Quick reference checklist for Supabase migration |
+| [VERCEL_DEPLOYMENT.md](./docs/VERCEL_DEPLOYMENT.md) | Deploy to production on Vercel with proper environment setup |
+
+### 📚 Component Documentation
+
+| Document | Content |
+|----------|---------|
+| [DATABASE.md](./docs/DATABASE.md) | Database schema, encryption, CRUD operations (now with Prisma + Supabase) |
 | [AUTHORIZATION_FLOW.md](./docs/AUTHORIZATION_FLOW.md) | Complete authorization flow with examples |
 | [EMAIL_SERVICE.md](./docs/EMAIL_SERVICE.md) | Email API reference with error codes |
 | [MONDAY_SETUP.md](./docs/MONDAY_SETUP.md) | Monday.com configuration guide |
