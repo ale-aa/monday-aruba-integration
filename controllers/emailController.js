@@ -138,8 +138,90 @@ class EmailController {
 
       console.log(`[EmailController] SendEmail for userId: ${userId}`);
 
-      // Estrai parametri dal body
-      const { recipient_email, subject, body, cc, bcc } = req.body;
+      // ===== FULL PAYLOAD DEBUG LOGGING =====
+      console.log('[EmailController] === FULL REQUEST DEBUG ===');
+      console.log('[EmailController] req.body:', JSON.stringify(req.body, null, 2));
+
+      // Check for Monday.com specific payload structures
+      const payload = req.body.payload || req.body;
+      const inputFields = req.body.inputFields || [];
+      const inboundFieldValues = req.body.inboundFieldValues || {};
+
+      console.log('[EmailController] payload:', JSON.stringify(payload, null, 2));
+      console.log('[EmailController] inputFields:', JSON.stringify(inputFields, null, 2));
+      console.log('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
+      console.log('[EmailController] === END FULL REQUEST DEBUG ===');
+
+      // FLEXIBLE FIELD EXTRACTION with fallback chains
+      // Try multiple possible field names and locations
+      let recipient_email =
+        req.body.recipient_email ||
+        req.body.email ||
+        req.body.to ||
+        req.body.recipient ||
+        payload.recipient_email ||
+        payload.email ||
+        payload.to ||
+        payload.recipient ||
+        inboundFieldValues.recipient_email ||
+        inboundFieldValues.email ||
+        inboundFieldValues.to ||
+        inboundFieldValues.recipient ||
+        null;
+
+      let subject =
+        req.body.subject ||
+        payload.subject ||
+        inboundFieldValues.subject ||
+        null;
+
+      let body =
+        req.body.body ||
+        req.body.content ||
+        req.body.message ||
+        payload.body ||
+        payload.content ||
+        payload.message ||
+        inboundFieldValues.body ||
+        inboundFieldValues.content ||
+        inboundFieldValues.message ||
+        null;
+
+      let cc = req.body.cc || payload.cc || inboundFieldValues.cc || null;
+      let bcc = req.body.bcc || payload.bcc || inboundFieldValues.bcc || null;
+
+      // DEBUG: Log extracted values
+      console.log('[EmailController] === EXTRACTED FIELDS ===');
+      console.log('[EmailController] recipient_email:', recipient_email);
+      console.log('[EmailController] subject:', subject);
+      console.log('[EmailController] body:', body ? (typeof body === 'string' ? body.substring(0, 100) : JSON.stringify(body).substring(0, 100)) : null);
+      console.log('[EmailController] cc:', cc);
+      console.log('[EmailController] bcc:', bcc);
+      console.log('[EmailController] === END EXTRACTED FIELDS ===');
+
+      // Check if recipient_email is missing and provide detailed error
+      if (!recipient_email) {
+        console.error('[EmailController] ✗ recipient_email mancante!');
+        console.error('[EmailController] Available fields in req.body:', Object.keys(req.body));
+        console.error('[EmailController] Available fields in payload:', payload ? Object.keys(payload) : 'N/A');
+        console.error('[EmailController] Available fields in inboundFieldValues:', Object.keys(inboundFieldValues));
+
+        return res.status(400).json({
+          success: false,
+          error: 'Parametri invalidi',
+          message: 'recipient_email è obbligatorio',
+          debug: {
+            requestBodyKeys: Object.keys(req.body),
+            payloadKeys: payload ? Object.keys(payload) : [],
+            inboundFieldValuesKeys: Object.keys(inboundFieldValues),
+            availableData: {
+              body: req.body,
+              payload,
+              inboundFieldValues
+            }
+          }
+        });
+      }
 
       // Valida parametri
       try {
