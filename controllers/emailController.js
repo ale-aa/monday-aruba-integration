@@ -120,6 +120,12 @@ class EmailController {
       // Estrai userId dal middleware di autenticazione
       userId = req.monday?.userId;
 
+      // ===== DETAILED REQUEST LOGGING =====
+      console.log('=== SEND EMAIL REQUEST ===');
+      console.log('UserId:', userId);
+      console.log('Payload:', JSON.stringify(req.body, null, 2));
+      console.log('==========================');
+
       if (!userId) {
         return res.status(400).json({
           success: false,
@@ -128,7 +134,7 @@ class EmailController {
         });
       }
 
-      console.log(`[EmailController] Invio email per user: ${userId}`);
+      console.log(`[EmailController] SendEmail for userId: ${userId}`);
 
       // Estrai parametri dal body
       const { recipient_email, subject, body, cc, bcc } = req.body;
@@ -146,11 +152,11 @@ class EmailController {
       }
 
       // Recupera credenziali dell'utente dal database
-      console.log(`[EmailController] Recuperando credenziali per user: ${userId}`);
+      console.log(`[EmailController] Retrieving credentials for userId: ${userId}`);
       const credentials = await IntegrationCredentials.findByUserIdWithPassword(userId);
 
       if (!credentials) {
-        console.warn(`[EmailController] Credenziali non trovate per user: ${userId}`);
+        console.warn(`[EmailController] Credentials not found for userId: ${userId}`);
         logAuthFailure({
           reason: 'Credentials not configured',
           method: 'sendEmail',
@@ -162,6 +168,8 @@ class EmailController {
           message: 'L\'utente non ha configurato le credenziali Aruba. Completare il flusso di autorizzazione.'
         });
       }
+
+      console.log(`[EmailController] Found credentials: ${credentials.aruba_email}`);
 
       // Crea transporter SMTP
       let transporter;
@@ -201,7 +209,7 @@ class EmailController {
       }
 
       console.log(
-        `[EmailController] Invio email: from=${mailOptions.from}, to=${mailOptions.to}, subject="${mailOptions.subject}"`
+        `[EmailController] Sending email: to=${mailOptions.to}, subject="${mailOptions.subject}"`
       );
 
       // Invia email
