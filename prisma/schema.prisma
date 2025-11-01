@@ -8,7 +8,9 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl is optional and should only be used if DIRECT_URL is available
+  // For Supabase Free tier, use DATABASE_URL with pgbouncer (port 6543) for migrations
+  // directUrl = env("DIRECT_URL")
 }
 
 // Integration credentials for Monday.com + Aruba Mail
