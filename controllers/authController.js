@@ -7,13 +7,14 @@ const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
  */
 class AuthController {
   /**
-   * Mostra il form di autorizzazione
-   * GET /monday/authorize?token=<jwt_token>
+   * Crea il form per le credenziali Aruba
+   * GET /credentials/create?token=<jwt_token>
    *
-   * Monday.com firma i JWT per gli Authorization URL usando SIGNING_SECRET,
-   * non CLIENT_SECRET. Questa è la configurazione corretta per le Integration Recipes.
+   * Segue lo standard Monday.com "Credentials Field".
+   * Il JWT contiene: userId, accountId, backToUrl
+   * Monday.com firma i JWT usando SIGNING_SECRET.
    */
-  static authorizeForm(req, res) {
+  static async createCredentials(req, res) {
     try {
       const { token } = req.query;
 
@@ -63,11 +64,23 @@ class AuthController {
       logAuthSuccess({
         userId,
         accountId,
-        method: 'authorize',
+        method: 'createCredentials',
         source: 'Monday.com'
       });
 
-      // Mostra il form HTML
+      // Se credenziali già esistono per questo userId, ridireziona direttamente a backToUrl
+      try {
+        const existing = await IntegrationCredentials.findByUserId(userId);
+        if (existing) {
+          console.log(`[AuthController] Credenziali già esistenti per userId: ${userId}. Redirect a backToUrl.`);
+          return res.redirect(backToUrl);
+        }
+      } catch (checkError) {
+        console.error('[AuthController] Errore nel check credenziali esistenti:', checkError);
+        // Continua a mostrare il form anche se il check fallisce
+      }
+
+      // Mostra il form HTML per la configurazione
       // backToUrl non deve essere encoded qui: il browser lo farà automaticamente nel form submission
       const htmlForm = `
         <!DOCTYPE html>
@@ -192,7 +205,7 @@ class AuthController {
               <strong>User ID:</strong> ${userId}
             </div>
 
-            <form method="POST" action="/monday/save-credentials">
+            <form method="POST" action="/credentials/save">
               <div class="form-group">
                 <label for="email">Email Aruba *</label>
                 <input
@@ -281,15 +294,15 @@ class AuthController {
   }
 
   /**
-   * Salva le credenziali dell'utente
-   * POST /monday/save-credentials
+   * Salva o aggiorna le credenziali dell'utente
+   * POST /credentials/save
    *
-   * Flusso di risposta:
-   * 1. Se backToUrl è presente → Redirect a Monday.com con success=true
-   * 2. Se backToUrl non disponibile → Mostra pagina HTML di successo
-   * 3. Se errore di salvataggio → Mostra pagina HTML di errore
+   * Flusso standard Monday.com "Credentials Field":
+   * 1. Riceve userId, accountId, email, password, smtp_host, smtp_port, backToUrl
+   * 2. Salva credenziali nel database (criptate)
+   * 3. Redireziona IMMEDIATAMENTE a backToUrl
    *
-   * Il backToUrl viene passato come hidden field dal form HTML di /monday/authorize
+   * Il backToUrl viene passato come hidden field dal form HTML di /credentials/create
    */
   static async saveCredentials(req, res) {
     try {
@@ -336,7 +349,7 @@ class AuthController {
         });
       }
 
-      console.log(`[AuthController] Salvando credenziali per user: ${userId}`);
+      console.log(`[AuthController] Salvataggio credenziali - userId: ${userId}, email: ${email.trim()}`);
 
       // Salva o aggiorna le credenziali
       try {
@@ -344,21 +357,23 @@ class AuthController {
 
         if (existing) {
           // Aggiorna credenziali esistenti
+          console.log(`[AuthController] Aggiornamento credenziali esistenti per userId: ${userId}`);
           await IntegrationCredentials.update(userId, {
             aruba_email: email.trim(),
             aruba_password: password,
             smtp_host: smtpHost,
             smtp_port: smtpPort
           });
-          await IntegrationCredentials.logAudit(userId, 'save-credentials', 'updated');
+          await IntegrationCredentials.logAudit(userId, 'saveCredentials', 'updated');
           logAuthSuccess({
             userId,
             accountId,
-            method: 'save-credentials',
+            method: 'saveCredentials',
             source: 'Credentials Update'
           });
         } else {
           // Crea nuove credenziali
+          console.log(`[AuthController] Creazione nuove credenziali per userId: ${userId}`);
           await IntegrationCredentials.create({
             userId,
             accountId,
@@ -367,11 +382,11 @@ class AuthController {
             smtp_host: smtpHost,
             smtp_port: smtpPort
           });
-          await IntegrationCredentials.logAudit(userId, 'save-credentials', 'created');
+          await IntegrationCredentials.logAudit(userId, 'saveCredentials', 'created');
           logAuthSuccess({
             userId,
             accountId,
-            method: 'save-credentials',
+            method: 'saveCredentials',
             source: 'Credentials Create'
           });
         }

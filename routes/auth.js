@@ -8,32 +8,38 @@ const verifyMonday = require('../middleware/verifyMonday');
  */
 
 /**
- * GET /monday/authorize
- * Mostra il form di autorizzazione per configurare le credenziali Aruba
+ * GET /credentials/create
+ * Mostra il form di creazione/modifica credenziali Aruba
  *
  * Query parameters:
- * - token: JWT token da decodificare (firmato con SIGNING_SECRET)
- * - backToUrl: URL di ritorno dopo il salvataggio
+ * - token: JWT token da decodificare (firmato con SIGNING_SECRET di Monday.com)
+ *   Payload contiene: userId, accountId, backToUrl
  *
- * IMPORTANTE: Monday.com firma i JWT per gli Authorization URL usando SIGNING_SECRET,
- * non CLIENT_SECRET. Questo è il comportamento corretto per le Integration Recipes.
+ * Comportamento:
+ * - Se credenziali già esistono per questo userId: redirect immediato a backToUrl
+ * - Se non esistono: mostra form HTML per configurarle
+ *
+ * Segue lo standard Monday.com "Credentials Field"
  */
-router.get('/monday/authorize', AuthController.authorizeForm);
+router.get('/credentials/create', AuthController.createCredentials);
 
 /**
- * POST /monday/save-credentials
- * Salva le credenziali Aruba per l'utente
+ * POST /credentials/save
+ * Salva o aggiorna le credenziali Aruba per l'utente
  *
  * Body parameters:
  * - userId: Monday user ID
  * - accountId: Monday account ID
- * - email: Email Aruba
- * - password: Password Aruba
- * - smtp_host: Server SMTP (opzionale)
- * - smtp_port: Porta SMTP (opzionale)
- * - backToUrl: URL di ritorno (opzionale)
+ * - email: Email Aruba (obbligatorio)
+ * - password: Password Aruba (obbligatorio)
+ * - smtp_host: Server SMTP (opzionale, default: mail.aruba.it)
+ * - smtp_port: Porta SMTP (opzionale, default: 465)
+ * - backToUrl: URL di ritorno a Monday.com (dal JWT payload)
+ *
+ * Risposta:
+ * - Redirect a backToUrl (HTTP 302)
  */
-router.post('/monday/save-credentials', AuthController.saveCredentials);
+router.post('/credentials/save', AuthController.saveCredentials);
 
 /**
  * POST /monday/getUserCredentials
