@@ -12,8 +12,11 @@ const verifyMonday = require('../middleware/verifyMonday');
  * Mostra il form di autorizzazione per configurare le credenziali Aruba
  *
  * Query parameters:
- * - token: JWT token da decodificare (CLIENT_SECRET)
+ * - token: JWT token da decodificare (firmato con SIGNING_SECRET)
  * - backToUrl: URL di ritorno dopo il salvataggio
+ *
+ * IMPORTANTE: Monday.com firma i JWT per gli Authorization URL usando SIGNING_SECRET,
+ * non CLIENT_SECRET. Questo è il comportamento corretto per le Integration Recipes.
  */
 router.get('/monday/authorize', AuthController.authorizeForm);
 

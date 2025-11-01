@@ -10,6 +10,9 @@ class AuthController {
   /**
    * Mostra il form di autorizzazione
    * GET /monday/authorize?token=<jwt_token>
+   *
+   * Monday.com firma i JWT per gli Authorization URL usando SIGNING_SECRET,
+   * non CLIENT_SECRET. Questa è la configurazione corretta per le Integration Recipes.
    */
   static authorizeForm(req, res) {
     try {
@@ -22,19 +25,19 @@ class AuthController {
         });
       }
 
-      const clientSecret = process.env.MONDAY_CLIENT_SECRET;
-      if (!clientSecret) {
-        console.error('[AuthController] MONDAY_CLIENT_SECRET non configurato');
+      const signingSecret = process.env.MONDAY_SIGNING_SECRET;
+      if (!signingSecret) {
+        console.error('[AuthController] MONDAY_SIGNING_SECRET non configurato');
         return res.status(500).json({
           error: 'Configurazione server errata',
-          message: 'MONDAY_CLIENT_SECRET non definito'
+          message: 'MONDAY_SIGNING_SECRET non definito'
         });
       }
 
-      // Decoda il token
+      // Decoda il token usando SIGNING_SECRET
       let decoded;
       try {
-        decoded = jwt.verify(token, clientSecret);
+        decoded = jwt.verify(token, signingSecret);
       } catch (error) {
         logAuthFailure({
           reason: 'Invalid JWT token',
