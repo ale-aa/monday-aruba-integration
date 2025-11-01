@@ -281,6 +281,13 @@ class AuthController {
   /**
    * Salva le credenziali dell'utente
    * POST /monday/save-credentials
+   *
+   * Flusso di risposta:
+   * 1. Se backToUrl è presente → Redirect a Monday.com con success=true
+   * 2. Se backToUrl non disponibile → Mostra pagina HTML di successo
+   * 3. Se errore di salvataggio → Mostra pagina HTML di errore
+   *
+   * Il backToUrl viene passato come hidden field dal form HTML di /monday/authorize
    */
   static async saveCredentials(req, res) {
     try {
@@ -367,36 +374,239 @@ class AuthController {
           });
         }
 
-        // Se backToUrl è fornito, redireziona con parametro di successo
+        // Priorità 1: Se backToUrl è fornito, redireziona a Monday.com
         if (backToUrl && backToUrl.trim()) {
           try {
             const decodedUrl = decodeURIComponent(backToUrl);
             const separator = decodedUrl.includes('?') ? '&' : '?';
+            console.log(`[AuthController] Redirecting to: ${decodedUrl}`);
             return res.redirect(
               `${decodedUrl}${separator}success=true&message=Credenziali+salvate+con+successo`
             );
-          } catch (error) {
-            console.error('[AuthController] Errore nel redirect:', error);
+          } catch (redirectError) {
+            console.error('[AuthController] Errore nel redirect a backToUrl:', redirectError);
+            // Se il redirect fallisce, continua a mostrare una pagina di successo HTML
           }
         }
 
-        // Default: ritorna JSON di successo
-        return res.status(201).json({
-          success: true,
-          message: 'Credenziali salvate con successo',
-          user: {
-            userId,
-            accountId,
-            email: email.trim()
-          }
-        });
+        // Priorità 2: Se non c'è backToUrl o redirect fallisce, mostra pagina HTML di successo
+        const successHtml = `
+          <!DOCTYPE html>
+          <html lang="it">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Configurazione Completata</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+              }
+              .container {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 500px;
+                width: 100%;
+                padding: 50px 40px;
+                text-align: center;
+              }
+              .success-icon {
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 40px;
+              }
+              h1 {
+                color: #333;
+                margin-bottom: 15px;
+                font-size: 28px;
+              }
+              p {
+                color: #666;
+                margin-bottom: 10px;
+                font-size: 16px;
+                line-height: 1.6;
+              }
+              .info-box {
+                background: #f0f4ff;
+                border-left: 4px solid #667eea;
+                padding: 15px;
+                margin: 30px 0;
+                border-radius: 4px;
+                text-align: left;
+                font-size: 14px;
+                color: #555;
+              }
+              .info-box strong {
+                color: #333;
+              }
+              .button {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 12px 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 600;
+                transition: all 0.3s;
+              }
+              .button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+              }
+              .code {
+                background: #f5f5f5;
+                padding: 10px 15px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+                margin: 10px 0;
+                word-break: break-all;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success-icon">✓</div>
+              <h1>Configurazione Completata!</h1>
+              <p>Le tue credenziali Aruba sono state salvate con successo.</p>
+
+              <div class="info-box">
+                <strong>Credenziali salvate:</strong><br>
+                Email: <code class="code">${email.trim()}</code><br>
+                Server SMTP: <code class="code">${smtpHost}:${smtpPort}</code><br>
+                User ID: <code class="code">${userId}</code>
+              </div>
+
+              <p>Puoi ora utilizzare questa integrazione per inviare email da Monday.com.</p>
+
+              ${backToUrl ? `
+                <p style="font-size: 13px; color: #999; margin-top: 20px;">
+                  Se non sei stato reindirizzato automaticamente,
+                  <a href="${decodeURIComponent(backToUrl)}" style="color: #667eea; text-decoration: none;">clicca qui</a>.
+                </p>
+              ` : ''}
+            </div>
+          </body>
+          </html>
+        `;
+
+        return res.status(201).send(successHtml);
 
       } catch (error) {
         if (error.code === 'P2002' || error.message.includes('UNIQUE constraint failed')) {
-          return res.status(409).json({
-            error: 'Credenziali già presenti',
-            message: 'Le credenziali per questo utente sono già state configurate'
-          });
+          // Mostra pagina HTML di errore per duplicazione
+          const errorHtml = `
+            <!DOCTYPE html>
+            <html lang="it">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Errore Configurazione</title>
+              <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  min-height: 100vh;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  padding: 20px;
+                }
+                .container {
+                  background: white;
+                  border-radius: 12px;
+                  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                  max-width: 500px;
+                  width: 100%;
+                  padding: 50px 40px;
+                  text-align: center;
+                }
+                .error-icon {
+                  width: 80px;
+                  height: 80px;
+                  margin: 0 auto 30px;
+                  background: #ffebee;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 40px;
+                  color: #c62828;
+                }
+                h1 {
+                  color: #c62828;
+                  margin-bottom: 15px;
+                  font-size: 28px;
+                }
+                p {
+                  color: #666;
+                  margin-bottom: 20px;
+                  font-size: 16px;
+                  line-height: 1.6;
+                }
+                .error-box {
+                  background: #ffebee;
+                  border-left: 4px solid #c62828;
+                  padding: 15px;
+                  margin: 20px 0;
+                  border-radius: 4px;
+                  text-align: left;
+                  font-size: 14px;
+                  color: #555;
+                }
+                .button {
+                  display: inline-block;
+                  margin-top: 20px;
+                  padding: 12px 30px;
+                  background: #667eea;
+                  color: white;
+                  text-decoration: none;
+                  border-radius: 6px;
+                  font-weight: 600;
+                  border: none;
+                  cursor: pointer;
+                  transition: all 0.3s;
+                }
+                .button:hover {
+                  background: #764ba2;
+                  transform: translateY(-2px);
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="error-icon">⚠</div>
+                <h1>Credenziali Già Configurate</h1>
+                <p>Esiste già una configurazione per questo utente.</p>
+
+                <div class="error-box">
+                  <strong>Cosa è successo:</strong><br>
+                  Le credenziali per l'utente <code>${userId}</code> sono già state salvate nel sistema.
+                </div>
+
+                <p>Per aggiornare le credenziali, contatta l'amministratore del sistema.</p>
+
+                <button class="button" onclick="history.back()">Torna Indietro</button>
+              </div>
+            </body>
+            </html>
+          `;
+          return res.status(409).send(errorHtml);
         }
         throw error;
       }
@@ -408,10 +618,114 @@ class AuthController {
         method: 'save-credentials',
         statusCode: 500
       });
-      res.status(500).json({
-        error: 'Errore nel salvataggio',
-        message: error.message
-      });
+
+      // Mostra pagina HTML di errore generico
+      const errorHtml = `
+        <!DOCTYPE html>
+        <html lang="it">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Errore nel Salvataggio</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              min-height: 100vh;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              padding: 20px;
+            }
+            .container {
+              background: white;
+              border-radius: 12px;
+              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+              max-width: 500px;
+              width: 100%;
+              padding: 50px 40px;
+              text-align: center;
+            }
+            .error-icon {
+              width: 80px;
+              height: 80px;
+              margin: 0 auto 30px;
+              background: #ffebee;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 40px;
+              color: #c62828;
+            }
+            h1 {
+              color: #c62828;
+              margin-bottom: 15px;
+              font-size: 28px;
+            }
+            p {
+              color: #666;
+              margin-bottom: 20px;
+              font-size: 16px;
+              line-height: 1.6;
+            }
+            .error-box {
+              background: #ffebee;
+              border-left: 4px solid #c62828;
+              padding: 15px;
+              margin: 20px 0;
+              border-radius: 4px;
+              text-align: left;
+              font-size: 13px;
+              color: #555;
+              max-height: 150px;
+              overflow-y: auto;
+              font-family: 'Courier New', monospace;
+            }
+            .button {
+              display: inline-block;
+              margin-top: 20px;
+              padding: 12px 30px;
+              background: #667eea;
+              color: white;
+              text-decoration: none;
+              border-radius: 6px;
+              font-weight: 600;
+              border: none;
+              cursor: pointer;
+              transition: all 0.3s;
+              margin-right: 10px;
+            }
+            .button:hover {
+              background: #764ba2;
+              transform: translateY(-2px);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error-icon">⚠</div>
+            <h1>Errore nel Salvataggio</h1>
+            <p>Si è verificato un errore durante il salvataggio delle credenziali.</p>
+
+            <div class="error-box">
+              <strong>Dettagli errore:</strong><br>
+              ${error.message}
+            </div>
+
+            <p style="font-size: 14px; color: #999;">
+              Se il problema persiste, contatta il supporto tecnico.
+            </p>
+
+            <button class="button" onclick="history.back()">Torna Indietro</button>
+            <button class="button" onclick="location.reload()" style="background: #999;">Riprova</button>
+          </div>
+        </body>
+        </html>
+      `;
+
+      return res.status(500).send(errorHtml);
     }
   }
 
