@@ -620,6 +620,107 @@ class AuthController {
   }
 
   /**
+   * Recupera credenziali per il dropdown Credentials Field di Monday.com
+   * POST /credentials/get
+   *
+   * Ritorna un array di credenziali disponibili per l'utente
+   * Formato standard Monday.com Credentials Field:
+   * [
+   *   {
+   *     title: "Account Aruba - email@aruba.it",
+   *     value: userId
+   *   }
+   * ]
+   *
+   * Richiede: Authorization header con JWT valido
+   */
+  static async getCredentials(req, res) {
+    try {
+      const userId = req.monday?.userId;
+
+      if (!userId) {
+        console.warn('[AuthController] getCredentials - userId mancante');
+        return res.status(400).json({
+          error: 'User ID mancante',
+          message: 'Impossibile estrarre userId dal token'
+        });
+      }
+
+      const credentials = await IntegrationCredentials.findByUserId(userId);
+
+      // Se credenziali trovate, ritorna in formato Credentials Field
+      if (credentials) {
+        console.log(`[AuthController] Get credentials for userId: ${userId}, found: true`);
+        return res.status(200).json([
+          {
+            title: `Account Aruba - ${credentials.aruba_email}`,
+            value: userId
+          }
+        ]);
+      }
+
+      // Se non trovate, ritorna array vuoto
+      console.log(`[AuthController] Get credentials for userId: ${userId}, found: false`);
+      return res.status(200).json([]);
+
+    } catch (error) {
+      console.error('[AuthController] Errore in getCredentials:', error);
+      return res.status(500).json({
+        error: 'Errore interno',
+        message: error.message
+      });
+    }
+  }
+
+  /**
+   * Elimina credenziali dell'utente
+   * POST /credentials/delete
+   *
+   * Elimina le credenziali Aruba associate all'utente
+   * Risposta: {success: true}
+   *
+   * Richiede: Authorization header con JWT valido
+   */
+  static async deleteCredentials(req, res) {
+    try {
+      const userId = req.monday?.userId;
+
+      if (!userId) {
+        console.warn('[AuthController] deleteCredentials - userId mancante');
+        return res.status(400).json({
+          error: 'User ID mancante',
+          message: 'Impossibile estrarre userId dal token'
+        });
+      }
+
+      const deleted = await IntegrationCredentials.delete(userId);
+
+      if (!deleted) {
+        console.log(`[AuthController] deleteCredentials - credenziali non trovate per userId: ${userId}`);
+        return res.status(200).json({
+          success: false,
+          message: 'Credenziali non trovate'
+        });
+      }
+
+      console.log(`[AuthController] Deleted credentials for userId: ${userId}`);
+      await IntegrationCredentials.logAudit(userId, 'deleteCredentials', 'deleted');
+
+      return res.status(200).json({
+        success: true,
+        message: 'Credenziali eliminate con successo'
+      });
+
+    } catch (error) {
+      console.error('[AuthController] Errore in deleteCredentials:', error);
+      return res.status(500).json({
+        error: 'Errore nell\'eliminazione',
+        message: error.message
+      });
+    }
+  }
+
+  /**
    * Recupera le credenziali dell'utente
    * POST /monday/getUserCredentials
    * Richiede: Authorization header con JWT valido

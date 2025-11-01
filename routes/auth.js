@@ -42,6 +42,39 @@ router.get('/credentials/create', AuthController.createCredentials);
 router.post('/credentials/save', AuthController.saveCredentials);
 
 /**
+ * POST /credentials/get
+ * Recupera credenziali per il dropdown Credentials Field di Monday.com
+ *
+ * Header richiesto:
+ * - Authorization: Bearer <JWT_TOKEN>
+ *
+ * Risposta (Credentials Field format):
+ * [
+ *   {
+ *     title: "Account Aruba - email@aruba.it",
+ *     value: "user_id"
+ *   }
+ * ]
+ * oppure [] se nessuna credenziale
+ */
+router.post('/credentials/get', verifyMonday, AuthController.getCredentials);
+
+/**
+ * POST /credentials/delete
+ * Elimina credenziali dell'utente
+ *
+ * Header richiesto:
+ * - Authorization: Bearer <JWT_TOKEN>
+ *
+ * Risposta:
+ * {
+ *   success: true/false,
+ *   message: "Credenziali eliminate con successo" / "Credenziali non trovate"
+ * }
+ */
+router.post('/credentials/delete', verifyMonday, AuthController.deleteCredentials);
+
+/**
  * POST /monday/getUserCredentials
  * Recupera le credenziali dell'utente autenticato
  *
