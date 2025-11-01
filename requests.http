@@ -1,0 +1,324 @@
+### Monday.com - Aruba Mail Integration
+### HTTP Request Examples for Visual Studio Code REST Client
+###
+### Replace JWT_TOKEN with actual tokens from your server
+### Usage: Install REST Client extension (REST Client by Huachao Guo)
+### Then click "Send Request" above each request
+
+@baseUrl = http://localhost:3000
+@jwt_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0X3VzZXIiLCJhY2NvdW50SWQiOiJ0ZXN0X2FjYyIsImlhdCI6MTczMDM5NzM0NiwiZXhwIjoxNzMwNDAwOTQ2fQ.V9-4DhjUCFoVr6JJq7TbWL-Nq88CPE-VqKMZYqfCvfg
+
+###############################################################################
+# PUBLIC ENDPOINTS
+###############################################################################
+
+### 1. Health Check
+GET {{baseUrl}}/health
+
+###
+
+### 2. Root Info
+GET {{baseUrl}}/
+
+###############################################################################
+# AUTHORIZATION ENDPOINTS (GET FORM)
+###############################################################################
+
+### 3. Get Authorization Form
+GET {{baseUrl}}/monday/authorize?backToUrl=http://localhost:3000
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### 3b. Get Authorization Form with Redirect URL
+GET {{baseUrl}}/monday/authorize?backToUrl=https://myapp.com/success
+Authorization: Bearer {{jwt_token}}
+
+###############################################################################
+# AUTHORIZATION ENDPOINTS (SAVE CREDENTIALS)
+###############################################################################
+
+### 4. Save Credentials (Form Submission)
+POST {{baseUrl}}/monday/save-credentials
+Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer {{jwt_token}}
+
+email=user@aruba.it&password=secretpassword&smtp_host=mail.aruba.it&smtp_port=465&backToUrl=http://localhost:3000
+
+###
+
+### 4b. Save Credentials with Redirect URL
+POST {{baseUrl}}/monday/save-credentials
+Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer {{jwt_token}}
+
+email=test@aruba.it&password=testpass123&smtp_host=mail.aruba.it&smtp_port=465&backToUrl=https://myapp.com/dashboard
+
+###############################################################################
+# AUTHORIZATION ENDPOINTS (GET/DELETE CREDENTIALS)
+###############################################################################
+
+### 5. Get User Credentials (View Saved Credentials)
+POST {{baseUrl}}/monday/getUserCredentials
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+###
+
+### 6. Delete User Credentials
+POST {{baseUrl}}/monday/deleteUserCredentials
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+###############################################################################
+# EMAIL ENDPOINTS (SEND EMAIL)
+###############################################################################
+
+### 7. Send Simple Email
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Test Email",
+  "body": "This is a simple test email from Monday-Aruba Integration"
+}
+
+###
+
+### 7b. Send Email with CC
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Test Email with CC",
+  "body": "This email has a CC recipient",
+  "cc": "cc@example.com"
+}
+
+###
+
+### 7c. Send Email with Multiple CC/BCC
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Email with Multiple Recipients",
+  "body": "This email has multiple CC and BCC recipients",
+  "cc": ["cc1@example.com", "cc2@example.com"],
+  "bcc": ["bcc1@example.com", "bcc2@example.com"]
+}
+
+###
+
+### 7d. Send Email with JSON Body
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Structured Email",
+  "body": {
+    "greeting": "Hello User",
+    "message": "This is a structured email",
+    "timestamp": "2025-11-01T14:49:06Z"
+  },
+  "cc": "admin@example.com"
+}
+
+###
+
+### 7e. Send Email with Long Subject (Max 998 chars)
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "This is a very long subject line that demonstrates the maximum character limit of 998 characters allowed for email subjects. This is important because RFC 5322 specifies that subject lines should not exceed 998 characters. We are testing this long subject to ensure proper validation and handling in our email service.",
+  "body": "Email with a long subject line"
+}
+
+###############################################################################
+# EMAIL ENDPOINTS (SMTP TEST)
+###############################################################################
+
+### 8. Test SMTP Configuration
+POST {{baseUrl}}/monday/testSMTP
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+###############################################################################
+# ERROR CASES (For Testing Error Handling)
+###############################################################################
+
+### 9. Error: Missing Authorization Token
+POST {{baseUrl}}/monday/sendEmail
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Test",
+  "body": "Test email"
+}
+
+###
+
+### 10. Error: Invalid Email Format
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "invalid-email-format",
+  "subject": "Test Email",
+  "body": "This should fail due to invalid email"
+}
+
+###
+
+### 11. Error: Missing Subject
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "body": "Email without subject"
+}
+
+###
+
+### 12. Error: Missing Body
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Test Email"
+}
+
+###
+
+### 13. Error: Invalid CC Email
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Test Email",
+  "body": "Test",
+  "cc": "invalid-cc-email"
+}
+
+###
+
+### 14. Error: Invalid BCC Email
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "user@example.com",
+  "subject": "Test Email",
+  "body": "Test",
+  "bcc": ["invalid-bcc@", "another-invalid"]
+}
+
+###############################################################################
+# JWT TOKEN GENERATION EXAMPLES
+###############################################################################
+
+### NOTE: JWT tokens are generated with:
+###
+### const jwt = require('jsonwebtoken');
+### const token = jwt.sign(
+###   { userId: 'test_user', accountId: 'test_acc' },
+###   process.env.MONDAY_SIGNING_SECRET,
+###   { expiresIn: '1h' }
+### );
+###
+### Token above is a sample. For testing:
+### 1. Run your server: npm start
+### 2. Check test files for valid token generation
+### 3. Or use: node -e "const jwt=require('jsonwebtoken'); console.log(jwt.sign({userId:'test',accountId:'acc'},process.env.MONDAY_SIGNING_SECRET,{expiresIn:'1h'}))"
+
+###############################################################################
+# COMPLETE WORKFLOW EXAMPLE
+###############################################################################
+
+### Step 1: GET Authorization Form
+GET {{baseUrl}}/monday/authorize?backToUrl=http://localhost:3000/success
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### Step 2: POST Credentials (Simulate Form Submission)
+POST {{baseUrl}}/monday/save-credentials
+Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer {{jwt_token}}
+
+email=myemail@aruba.it&password=mypassword&smtp_host=mail.aruba.it&smtp_port=465&backToUrl=http://localhost:3000/success
+
+###
+
+### Step 3: Test SMTP Configuration
+POST {{baseUrl}}/monday/testSMTP
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+###
+
+### Step 4: Get User Credentials
+POST {{baseUrl}}/monday/getUserCredentials
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+###
+
+### Step 5: Send Email
+POST {{baseUrl}}/monday/sendEmail
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "recipient_email": "recipient@example.com",
+  "subject": "Welcome to Monday-Aruba Integration",
+  "body": "Your credentials have been successfully configured and you can now send emails!"
+}
+
+###
+
+### Step 6: Delete Credentials (Optional Cleanup)
+POST {{baseUrl}}/monday/deleteUserCredentials
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+###############################################################################
+# NOTES
+###############################################################################
+
+### JWT Token Structure:
+### Header:   {"alg":"HS256","typ":"JWT"}
+### Payload:  {"userId":"test_user","accountId":"test_acc","iat":1730397346,"exp":1730400946}
+### Signature: V9-4DhjUCFoVr6JJq7TbWL-Nq88CPE-VqKMZYqfCvfg
+
+### To generate a new token, run:
+### node test-jwt-validation.js
+
+### Request Timeout (seconds): 10
+### Content-Type: application/json or application/x-www-form-urlencoded
+
+### For detailed API documentation, see:
+### - README.md
+### - docs/EMAIL_SERVICE.md
+### - docs/AUTHORIZATION_FLOW.md
+### - docs/DATABASE.md

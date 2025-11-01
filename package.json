@@ -1,0 +1,41 @@
+{
+  "name": "monday-aruba-integration",
+  "version": "1.0.0",
+  "description": "Monday.com - Aruba Mail Integration with Express.js, SQLite, and JWT authentication",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "npm run test:db && npm run test:jwt && npm run test:auth && npm run test:email",
+    "test:db": "node test-database.js",
+    "test:jwt": "node test-jwt-validation.js",
+    "test:auth": "node test-auth-endpoints.js",
+    "test:email": "node test-email-endpoints.js",
+    "test:all": "echo '=== Running All Tests ===' && npm run test"
+  },
+  "keywords": [
+    "monday.com",
+    "aruba",
+    "smtp",
+    "email",
+    "integration",
+    "express",
+    "sqlite",
+    "jwt",
+    "aes-256"
+  ],
+  "author": "Your Name",
+  "license": "ISC",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.10"
+  }
+}
