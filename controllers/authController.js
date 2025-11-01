@@ -66,7 +66,7 @@ class AuthController {
       });
 
       // Mostra il form HTML
-      const safeBackToUrl = backToUrl ? encodeURIComponent(backToUrl) : '';
+      // backToUrl non deve essere encoded qui: il browser lo farà automaticamente nel form submission
       const htmlForm = `
         <!DOCTYPE html>
         <html lang="it">
@@ -240,7 +240,7 @@ class AuthController {
 
               <input type="hidden" name="userId" value="${userId}">
               <input type="hidden" name="accountId" value="${accountId}">
-              <input type="hidden" name="backToUrl" value="${safeBackToUrl}">
+              <input type="hidden" name="backToUrl" value="${backToUrl || ''}">
 
               <div class="info-box">
                 🔒 Le tue credenziali verranno criptate e memorizzate in modo sicuro.
@@ -255,9 +255,9 @@ class AuthController {
 
           <script>
             function goBack() {
-              const backToUrl = '${safeBackToUrl}';
+              const backToUrl = '${backToUrl || ''}';
               if (backToUrl) {
-                window.location.href = decodeURIComponent(backToUrl);
+                window.location.href = backToUrl;
               } else {
                 window.history.back();
               }
@@ -375,13 +375,13 @@ class AuthController {
         }
 
         // Priorità 1: Se backToUrl è fornito, redireziona a Monday.com
+        // backToUrl viene ricevuto già decodificato dal form POST (il browser lo decoda automaticamente)
         if (backToUrl && backToUrl.trim()) {
           try {
-            const decodedUrl = decodeURIComponent(backToUrl);
-            const separator = decodedUrl.includes('?') ? '&' : '?';
-            console.log(`[AuthController] Redirecting to: ${decodedUrl}`);
+            const separator = backToUrl.includes('?') ? '&' : '?';
+            console.log(`[AuthController] Redirecting to: ${backToUrl}`);
             return res.redirect(
-              `${decodedUrl}${separator}success=true&message=Credenziali+salvate+con+successo`
+              `${backToUrl}${separator}success=true&message=Credenziali+salvate+con+successo`
             );
           } catch (redirectError) {
             console.error('[AuthController] Errore nel redirect a backToUrl:', redirectError);
@@ -496,7 +496,7 @@ class AuthController {
               ${backToUrl ? `
                 <p style="font-size: 13px; color: #999; margin-top: 20px;">
                   Se non sei stato reindirizzato automaticamente,
-                  <a href="${decodeURIComponent(backToUrl)}" style="color: #667eea; text-decoration: none;">clicca qui</a>.
+                  <a href="${backToUrl}" style="color: #667eea; text-decoration: none;">clicca qui</a>.
                 </p>
               ` : ''}
             </div>
