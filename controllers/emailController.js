@@ -165,6 +165,14 @@ class EmailController {
       console.log('[EmailController] Type:', typeof inboundFieldValues.email);
       console.log('[EmailController] =========================================');
 
+      // === DIRECT EMAIL FIELD INSPECTION ===
+      console.log('[EmailController] ========== DIRECT EMAIL CHECK ==========');
+      console.log('[EmailController] inboundFieldValues.email EXISTS?', 'email' in inboundFieldValues);
+      console.log('[EmailController] inboundFieldValues.email VALUE:', inboundFieldValues.email);
+      console.log('[EmailController] inboundFieldValues.email TYPE:', typeof inboundFieldValues.email);
+      console.log('[EmailController] inboundFieldValues.email JSON:', JSON.stringify(inboundFieldValues.email, null, 2));
+      console.log('[EmailController] =======================================');
+
       // FLEXIBLE FIELD EXTRACTION with fallback chains
       // The REAL data is in inboundFieldValues! Search there FIRST
       let recipient_email =
@@ -203,9 +211,14 @@ class EmailController {
         recipient_email = recipient_email[0];
       }
 
-      // Aggressive extraction fallback: se recipient_email è ancora null/undefined
+      // Debug: controlla lo stato di recipient_email prima del fallback
+      console.log('[EmailController] Before aggressive extraction - recipient_email:', recipient_email);
+      console.log('[EmailController] recipient_email is falsy?', !recipient_email);
+      console.log('[EmailController] recipient_email is empty string?', recipient_email === '');
+
+      // Aggressive extraction fallback: se recipient_email è ancora null/undefined/empty
       // prova a estrarre QUALSIASI cosa che assomigli a un'email da inboundFieldValues
-      if (!recipient_email && inboundFieldValues) {
+      if ((!recipient_email || recipient_email === '') && inboundFieldValues) {
         console.log('[EmailController] Trying aggressive extraction from inboundFieldValues');
 
         // Cerca in tutte le chiavi
