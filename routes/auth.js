@@ -104,4 +104,76 @@ router.post('/monday/getUserCredentials', verifyMonday, AuthController.getUserCr
  */
 router.post('/monday/deleteUserCredentials', verifyMonday, AuthController.deleteUserCredentials);
 
+/**
+ * POST /monday/update-smtp/:userId
+ * Aggiorna le impostazioni SMTP per un utente
+ *
+ * Parametri URL:
+ * - userId: ID utente Monday.com
+ *
+ * Body:
+ * {
+ *   "smtp_host": "smtp.aruba.it" (opzionale, default: smtp.aruba.it),
+ *   "smtp_port": 465 (opzionale, default: 465)
+ * }
+ *
+ * Risposta:
+ * {
+ *   "success": true/false,
+ *   "message": "SMTP settings updated",
+ *   "smtp_host": "smtp.aruba.it",
+ *   "smtp_port": 465
+ * }
+ */
+router.post('/monday/update-smtp/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const { smtp_host, smtp_port } = req.body;
+
+  try {
+    const IntegrationCredentials = require('../models/IntegrationCredentials');
+
+    // Validazione input
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'userId è obbligatorio'
+      });
+    }
+
+    // Usa valori di default se non forniti
+    const updateData = {};
+    if (smtp_host) {
+      updateData.smtp_host = smtp_host;
+    } else {
+      updateData.smtp_host = 'smtp.aruba.it';
+    }
+
+    if (smtp_port) {
+      updateData.smtp_port = parseInt(smtp_port);
+    } else {
+      updateData.smtp_port = 465;
+    }
+
+    console.log(`[AuthController] Updating SMTP settings for user ${userId}:`, updateData);
+
+    // Aggiorna le credenziali nel database
+    await IntegrationCredentials.update(userId, updateData);
+
+    console.log(`[AuthController] SMTP settings updated successfully for user ${userId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'SMTP settings updated',
+      smtp_host: updateData.smtp_host,
+      smtp_port: updateData.smtp_port
+    });
+  } catch (error) {
+    console.error(`[AuthController] Error updating SMTP settings: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
