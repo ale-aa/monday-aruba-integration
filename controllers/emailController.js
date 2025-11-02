@@ -122,6 +122,13 @@ class EmailController {
       // Converti userId a stringa per il database Prisma
       userId = String(rawUserId);
 
+      // ===== COMPREHENSIVE FLOW DEBUG =====
+      console.log('=============================================');
+      console.log('SEND EMAIL - FULL FLOW DEBUG');
+      console.log('=============================================');
+      console.log('1. UserId from JWT:', userId);
+      console.log('2. UserId type:', typeof userId);
+
       // ===== DETAILED REQUEST LOGGING =====
       console.log('=== SEND EMAIL REQUEST ===');
       console.log('UserId:', userId, '(type: string)');
@@ -371,8 +378,29 @@ class EmailController {
       }
 
       // Recupera credenziali dell'utente dal database
-      console.log(`[EmailController] Retrieving credentials for userId: ${userId}`);
+      console.log('3. Searching credentials for userId:', userId);
+
       const credentials = await IntegrationCredentials.findByUserIdWithPassword(userId);
+
+      console.log('4. Credentials found?', !!credentials);
+      if (credentials) {
+        console.log('5. Credentials details:');
+        console.log('   - aruba_email:', credentials.aruba_email);
+        console.log('   - smtp_host:', credentials.smtp_host);
+        console.log('   - smtp_port:', credentials.smtp_port);
+        console.log('   - has password?', !!credentials.aruba_password);
+      } else {
+        console.log('5. NO CREDENTIALS FOUND!');
+        console.log('   - Checking what userIds exist in DB...');
+
+        // Aggiungi query per vedere tutti gli userId nel database
+        const allCreds = await IntegrationCredentials.findAll();
+        console.log('   - Total credentials in DB:', allCreds?.length || 0);
+        if (allCreds && allCreds.length > 0) {
+          console.log('   - Available userIds:', allCreds.map(c => c.monday_user_id));
+        }
+      }
+      console.log('=============================================');
 
       if (!credentials) {
         console.warn(`[EmailController] Credentials not found for userId: ${userId}`);
