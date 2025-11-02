@@ -158,6 +158,13 @@ class EmailController {
       console.log('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
       console.log('[EmailController] === END EXTRACTED STRUCTURES ===');
 
+      // === DETAILED INBOUND FIELD VALUES LOGGING ===
+      console.log('[EmailController] === INBOUND FIELD VALUES DETAILS ===');
+      console.log('[EmailController] inboundFields:', JSON.stringify(inboundFieldValues, null, 2));
+      console.log('[EmailController] inboundFields.email:', inboundFieldValues.email);
+      console.log('[EmailController] Type:', typeof inboundFieldValues.email);
+      console.log('[EmailController] =========================================');
+
       // FLEXIBLE FIELD EXTRACTION with fallback chains
       // The REAL data is in inboundFieldValues! Search there FIRST
       let recipient_email =
@@ -184,7 +191,7 @@ class EmailController {
       console.log('[EmailController] recipient_email type:', typeof recipient_email);
       console.log('[EmailController] recipient_email is array?', Array.isArray(recipient_email));
 
-      // Se è un oggetto, prendi la proprietà 'value' o 'email'
+      // Se è un oggetto, loggalo
       if (recipient_email && typeof recipient_email === 'object') {
         console.log('[EmailController] recipient_email is object:', JSON.stringify(recipient_email));
         recipient_email = recipient_email.value || recipient_email.email || recipient_email.text;
@@ -198,7 +205,8 @@ class EmailController {
 
       // Converti a stringa
       recipient_email = String(recipient_email || '').trim();
-      console.log('[EmailController] recipient_email final:', recipient_email);
+      console.log('[EmailController] recipient_email extracted:', recipient_email);
+      console.log('[EmailController] recipient_email type:', typeof recipient_email);
 
       // --- SUBJECT HANDLING ---
       let subject =
