@@ -76,6 +76,9 @@ class EmailController {
       throw new Error('Credenziali SMTP incomplete');
     }
 
+    console.log('[EmailController] Tentativo connessione SMTP...');
+    console.log('[EmailController] Host:', smtp_host);
+    console.log('[EmailController] Port:', smtp_port);
     console.log(
       `[EmailController] Creando transporter SMTP per ${aruba_email} @ ${smtp_host}:${smtp_port}`
     );
@@ -83,8 +86,8 @@ class EmailController {
     // Crea transporter nodemailer
     const transporter = nodemailer.createTransport({
       host: smtp_host,
-      port: smtp_port,
-      secure: true, // TLS
+      port: parseInt(smtp_port),
+      secure: smtp_port == 465, // true per porta 465 (SSL), false per 587 (STARTTLS)
       auth: {
         user: aruba_email,
         pass: aruba_password
@@ -92,8 +95,12 @@ class EmailController {
       // Opzioni aggiuntive
       logger: process.env.DEBUG_EMAIL === 'true',
       debug: process.env.DEBUG_EMAIL === 'true',
-      connectionTimeout: 10000,
-      socketTimeout: 10000
+      connectionTimeout: 30000, // 30 secondi invece di 10
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
+      tls: {
+        rejectUnauthorized: false // accetta certificati self-signed
+      }
     });
 
     return transporter;
