@@ -14,27 +14,27 @@ class EmailController {
   static validateEmailParams(params) {
     const { recipient_email, subject, body, cc, bcc } = params;
 
-    // Validazione recipient_email
-    if (!recipient_email || !recipient_email.trim()) {
+    // Validazione recipient_email (ora garantito stringa)
+    if (!recipient_email) {
       throw new Error('recipient_email è obbligatorio');
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(recipient_email.trim())) {
+    if (!emailRegex.test(recipient_email)) {
       throw new Error('recipient_email non è valido');
     }
 
-    // Validazione subject
-    if (!subject || !subject.trim()) {
+    // Validazione subject (ora garantito stringa)
+    if (!subject) {
       throw new Error('subject è obbligatorio');
     }
 
-    if (subject.trim().length > 998) {
+    if (subject.length > 998) {
       throw new Error('subject non può superare 998 caratteri');
     }
 
-    // Validazione body
-    if (!body || (typeof body === 'string' && !body.trim())) {
+    // Validazione body (ora garantito stringa)
+    if (!body) {
       throw new Error('body è obbligatorio');
     }
 
@@ -42,7 +42,7 @@ class EmailController {
     if (cc) {
       const ccArray = Array.isArray(cc) ? cc : [cc];
       for (const email of ccArray) {
-        if (email && !emailRegex.test(email.trim())) {
+        if (email && !emailRegex.test(String(email).trim())) {
           throw new Error(`Email CC non valida: ${email}`);
         }
       }
@@ -52,7 +52,7 @@ class EmailController {
     if (bcc) {
       const bccArray = Array.isArray(bcc) ? bcc : [bcc];
       for (const email of bccArray) {
-        if (email && !emailRegex.test(email.trim())) {
+        if (email && !emailRegex.test(String(email).trim())) {
           throw new Error(`Email BCC non valida: ${email}`);
         }
       }
@@ -180,6 +180,28 @@ class EmailController {
         inboundFieldValues.recipient ||
         null;
 
+      // Logging per vedere il TIPO di dato recipient_email
+      console.log('[EmailController] recipient_email raw:', recipient_email);
+      console.log('[EmailController] recipient_email type:', typeof recipient_email);
+      console.log('[EmailController] recipient_email is array?', Array.isArray(recipient_email));
+
+      // Se è un oggetto, prendi la proprietà 'value' o 'email'
+      if (recipient_email && typeof recipient_email === 'object') {
+        console.log('[EmailController] recipient_email is object:', JSON.stringify(recipient_email));
+        recipient_email = recipient_email.value || recipient_email.email || recipient_email.text;
+      }
+
+      // Se è un array, prendi il primo elemento
+      if (Array.isArray(recipient_email) && recipient_email.length > 0) {
+        console.log('[EmailController] recipient_email is array, taking first element');
+        recipient_email = recipient_email[0];
+      }
+
+      // Converti a stringa
+      recipient_email = String(recipient_email || '').trim();
+      console.log('[EmailController] recipient_email final:', recipient_email);
+
+      // --- SUBJECT HANDLING ---
       let subject =
         inputFields.subject ||
         inputFields.oggetto ||
@@ -188,6 +210,23 @@ class EmailController {
         inboundFieldValues.subject ||
         null;
 
+      console.log('[EmailController] subject raw:', subject);
+      console.log('[EmailController] subject type:', typeof subject);
+
+      if (subject && typeof subject === 'object') {
+        console.log('[EmailController] subject is object:', JSON.stringify(subject));
+        subject = subject.value || subject.text || subject.message;
+      }
+
+      if (Array.isArray(subject) && subject.length > 0) {
+        console.log('[EmailController] subject is array, taking first element');
+        subject = subject[0];
+      }
+
+      subject = String(subject || '').trim();
+      console.log('[EmailController] subject final:', subject);
+
+      // --- BODY HANDLING ---
       let body =
         inputFields.body ||
         inputFields.message ||
@@ -203,14 +242,45 @@ class EmailController {
         inboundFieldValues.message ||
         null;
 
+      console.log('[EmailController] body raw:', body ? (typeof body === 'string' ? body.substring(0, 100) : JSON.stringify(body).substring(0, 100)) : null);
+      console.log('[EmailController] body type:', typeof body);
+
+      if (body && typeof body === 'object' && !Array.isArray(body)) {
+        console.log('[EmailController] body is object:', JSON.stringify(body));
+        body = body.value || body.text || body.message || body.content;
+      }
+
+      if (Array.isArray(body) && body.length > 0) {
+        console.log('[EmailController] body is array, taking first element');
+        body = body[0];
+      }
+
+      body = String(body || '').trim();
+      console.log('[EmailController] body final:', body.substring(0, 100));
+
+      // --- CC HANDLING ---
       let cc = inputFields.cc || req.body.cc || payload.cc || inboundFieldValues.cc || null;
+      if (cc && typeof cc === 'object' && !Array.isArray(cc)) {
+        cc = cc.value || cc.email || cc.text;
+      }
+      if (cc) {
+        cc = String(cc).trim();
+      }
+
+      // --- BCC HANDLING ---
       let bcc = inputFields.bcc || req.body.bcc || payload.bcc || inboundFieldValues.bcc || null;
+      if (bcc && typeof bcc === 'object' && !Array.isArray(bcc)) {
+        bcc = bcc.value || bcc.email || bcc.text;
+      }
+      if (bcc) {
+        bcc = String(bcc).trim();
+      }
 
       // DEBUG: Log extracted values
       console.log('[EmailController] === EXTRACTED FIELDS ===');
       console.log('[EmailController] recipient_email:', recipient_email);
       console.log('[EmailController] subject:', subject);
-      console.log('[EmailController] body:', body ? (typeof body === 'string' ? body.substring(0, 100) : JSON.stringify(body).substring(0, 100)) : null);
+      console.log('[EmailController] body:', body ? body.substring(0, 100) : null);
       console.log('[EmailController] cc:', cc);
       console.log('[EmailController] bcc:', bcc);
       console.log('[EmailController] === END EXTRACTED FIELDS ===');
