@@ -139,22 +139,33 @@ class EmailController {
       console.log(`[EmailController] SendEmail for userId: ${userId}`);
 
       // ===== FULL PAYLOAD DEBUG LOGGING =====
-      console.log('[EmailController] === FULL REQUEST DEBUG ===');
-      console.log('[EmailController] req.body:', JSON.stringify(req.body, null, 2));
+      console.log('=== FULL PAYLOAD DEBUG ===');
+      console.log('Full req.body:', JSON.stringify(req.body, null, 2));
+      console.log('inputFields:', JSON.stringify(req.body.inputFields, null, 2));
+      console.log('payload.inputFields:', JSON.stringify(req.body.payload?.inputFields, null, 2));
+      console.log('credentialsValues:', JSON.stringify(req.body.payload?.credentialsValues, null, 2));
+      console.log('========================');
 
       // Check for Monday.com specific payload structures
       const payload = req.body.payload || req.body;
-      const inputFields = req.body.inputFields || [];
-      const inboundFieldValues = req.body.inboundFieldValues || {};
+      // IMPORTANT: inputFields might be directly in req.body or in payload
+      const inputFields = req.body.inputFields || payload.inputFields || {};
+      const inboundFieldValues = req.body.inboundFieldValues || payload.inboundFieldValues || {};
 
+      console.log('[EmailController] === EXTRACTED STRUCTURES ===');
       console.log('[EmailController] payload:', JSON.stringify(payload, null, 2));
       console.log('[EmailController] inputFields:', JSON.stringify(inputFields, null, 2));
       console.log('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
-      console.log('[EmailController] === END FULL REQUEST DEBUG ===');
+      console.log('[EmailController] === END EXTRACTED STRUCTURES ===');
 
       // FLEXIBLE FIELD EXTRACTION with fallback chains
       // Try multiple possible field names and locations
+      // Search in inputFields FIRST (where Monday.com sends the data)
       let recipient_email =
+        inputFields.recipient_email ||
+        inputFields.email ||
+        inputFields.to ||
+        inputFields.recipient ||
         req.body.recipient_email ||
         req.body.email ||
         req.body.to ||
@@ -170,12 +181,17 @@ class EmailController {
         null;
 
       let subject =
+        inputFields.subject ||
+        inputFields.oggetto ||
         req.body.subject ||
         payload.subject ||
         inboundFieldValues.subject ||
         null;
 
       let body =
+        inputFields.body ||
+        inputFields.message ||
+        inputFields.text ||
         req.body.body ||
         req.body.content ||
         req.body.message ||
@@ -187,8 +203,8 @@ class EmailController {
         inboundFieldValues.message ||
         null;
 
-      let cc = req.body.cc || payload.cc || inboundFieldValues.cc || null;
-      let bcc = req.body.bcc || payload.bcc || inboundFieldValues.bcc || null;
+      let cc = inputFields.cc || req.body.cc || payload.cc || inboundFieldValues.cc || null;
+      let bcc = inputFields.bcc || req.body.bcc || payload.bcc || inboundFieldValues.bcc || null;
 
       // DEBUG: Log extracted values
       console.log('[EmailController] === EXTRACTED FIELDS ===');
