@@ -159,11 +159,14 @@ class EmailController {
       console.log('[EmailController] === END EXTRACTED STRUCTURES ===');
 
       // FLEXIBLE FIELD EXTRACTION with fallback chains
-      // Try multiple possible field names and locations
-      // Search in inputFields FIRST (where Monday.com sends the data)
+      // The REAL data is in inboundFieldValues! Search there FIRST
       let recipient_email =
-        inputFields.recipient_email ||
+        inboundFieldValues.email ||           // ← QUI È L'EMAIL!
+        inboundFieldValues.recipient_email ||
+        inboundFieldValues.to ||
+        inboundFieldValues.recipient ||
         inputFields.email ||
+        inputFields.recipient_email ||
         inputFields.to ||
         inputFields.recipient ||
         req.body.recipient_email ||
@@ -174,10 +177,6 @@ class EmailController {
         payload.email ||
         payload.to ||
         payload.recipient ||
-        inboundFieldValues.recipient_email ||
-        inboundFieldValues.email ||
-        inboundFieldValues.to ||
-        inboundFieldValues.recipient ||
         null;
 
       // Logging per vedere il TIPO di dato recipient_email
@@ -203,12 +202,13 @@ class EmailController {
 
       // --- SUBJECT HANDLING ---
       let subject =
+        inboundFieldValues.subject ||
+        inboundFieldValues.oggetto ||
         inputFields.subject ||
         inputFields.oggetto ||
         req.body.subject ||
         payload.subject ||
-        inboundFieldValues.subject ||
-        null;
+        'Email da Monday.com';
 
       console.log('[EmailController] subject raw:', subject);
       console.log('[EmailController] subject type:', typeof subject);
@@ -223,11 +223,14 @@ class EmailController {
         subject = subject[0];
       }
 
-      subject = String(subject || '').trim();
+      subject = String(subject || 'Email da Monday.com').trim();
       console.log('[EmailController] subject final:', subject);
 
       // --- BODY HANDLING ---
       let body =
+        inboundFieldValues.body ||
+        inboundFieldValues.message ||
+        inboundFieldValues.text ||
         inputFields.body ||
         inputFields.message ||
         inputFields.text ||
@@ -237,10 +240,7 @@ class EmailController {
         payload.body ||
         payload.content ||
         payload.message ||
-        inboundFieldValues.body ||
-        inboundFieldValues.content ||
-        inboundFieldValues.message ||
-        null;
+        'Messaggio da Monday.com';
 
       console.log('[EmailController] body raw:', body ? (typeof body === 'string' ? body.substring(0, 100) : JSON.stringify(body).substring(0, 100)) : null);
       console.log('[EmailController] body type:', typeof body);
@@ -255,11 +255,11 @@ class EmailController {
         body = body[0];
       }
 
-      body = String(body || '').trim();
+      body = String(body || 'Messaggio da Monday.com').trim();
       console.log('[EmailController] body final:', body.substring(0, 100));
 
       // --- CC HANDLING ---
-      let cc = inputFields.cc || req.body.cc || payload.cc || inboundFieldValues.cc || null;
+      let cc = inboundFieldValues.cc || inputFields.cc || req.body.cc || payload.cc || null;
       if (cc && typeof cc === 'object' && !Array.isArray(cc)) {
         cc = cc.value || cc.email || cc.text;
       }
@@ -268,7 +268,7 @@ class EmailController {
       }
 
       // --- BCC HANDLING ---
-      let bcc = inputFields.bcc || req.body.bcc || payload.bcc || inboundFieldValues.bcc || null;
+      let bcc = inboundFieldValues.bcc || inputFields.bcc || req.body.bcc || payload.bcc || null;
       if (bcc && typeof bcc === 'object' && !Array.isArray(bcc)) {
         bcc = bcc.value || bcc.email || bcc.text;
       }
