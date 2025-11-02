@@ -203,6 +203,34 @@ class EmailController {
         recipient_email = recipient_email[0];
       }
 
+      // Aggressive extraction fallback: se recipient_email è ancora null/undefined
+      // prova a estrarre QUALSIASI cosa che assomigli a un'email da inboundFieldValues
+      if (!recipient_email && inboundFieldValues) {
+        console.log('[EmailController] Trying aggressive extraction from inboundFieldValues');
+
+        // Cerca in tutte le chiavi
+        for (const [key, value] of Object.entries(inboundFieldValues)) {
+          console.log(`[EmailController] Checking key "${key}":`, value);
+
+          // Se il valore sembra un'email (contiene @)
+          if (value && typeof value === 'string' && value.includes('@')) {
+            recipient_email = value;
+            console.log(`[EmailController] Found email in key "${key}":`, recipient_email);
+            break;
+          }
+
+          // Se il valore è un oggetto con proprietà email-like
+          if (value && typeof value === 'object') {
+            const possibleEmail = value.email || value.value || value.text || value.address;
+            if (possibleEmail && String(possibleEmail).includes('@')) {
+              recipient_email = possibleEmail;
+              console.log(`[EmailController] Found email in object "${key}":`, recipient_email);
+              break;
+            }
+          }
+        }
+      }
+
       // Converti a stringa
       recipient_email = String(recipient_email || '').trim();
       console.log('[EmailController] recipient_email extracted:', recipient_email);
