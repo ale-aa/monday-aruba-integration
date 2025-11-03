@@ -76,30 +76,50 @@ class EmailController {
       throw new Error('Credenziali SMTP incomplete');
     }
 
+    console.log('[EmailController] ========================================');
     console.log('[EmailController] Tentativo connessione SMTP...');
     console.log('[EmailController] Host:', smtp_host);
-    console.log('[EmailController] Port:', smtp_port);
-    console.log(
-      `[EmailController] Creando transporter SMTP per ${aruba_email} @ ${smtp_host}:${smtp_port}`
-    );
+    console.log('[EmailController] Port:', parseInt(smtp_port));
+    console.log('[EmailController] Email:', aruba_email);
+    console.log('[EmailController] Secure (TLS):', parseInt(smtp_port) === 465);
+    console.log('[EmailController] ========================================');
 
     // Crea transporter nodemailer
     const transporter = nodemailer.createTransport({
       host: smtp_host,
       port: parseInt(smtp_port),
-      secure: smtp_port == 465, // true per porta 465 (SSL), false per 587 (STARTTLS)
+      secure: parseInt(smtp_port) === 465, // true per porta 465 (SSL), false per 587 (STARTTLS)
       auth: {
         user: aruba_email,
         pass: aruba_password
       },
       // Opzioni aggiuntive
-      logger: process.env.DEBUG_EMAIL === 'true',
-      debug: process.env.DEBUG_EMAIL === 'true',
-      connectionTimeout: 30000, // 30 secondi invece di 10
+      logger: true,
+      debug: true,
+      connectionTimeout: 60000, // 60 secondi per timeout di rete/Vercel
       greetingTimeout: 30000,
-      socketTimeout: 30000,
+      socketTimeout: 60000,
       tls: {
-        rejectUnauthorized: false // accetta certificati self-signed
+        rejectUnauthorized: false, // accetta certificati self-signed
+        minVersion: 'TLSv1.2'
+      }
+    });
+
+    // TEST IMMEDIATO della connessione per diagnosticare problemi di rete
+    console.log('[EmailController] Testing SMTP connection...');
+    const testStartTime = Date.now();
+
+    transporter.verify((error, success) => {
+      const duration = Date.now() - testStartTime;
+
+      if (error) {
+        console.error('[EmailController] ✗ SMTP verification FAILED after', duration, 'ms');
+        console.error('[EmailController] Error type:', error.code || 'UNKNOWN');
+        console.error('[EmailController] Error message:', error.message);
+        console.error('[EmailController] Error details:', JSON.stringify(error, null, 2));
+      } else {
+        console.log('[EmailController] ✓ SMTP verification SUCCESS after', duration, 'ms');
+        console.log('[EmailController] Connection is ready for sending emails');
       }
     });
 
