@@ -4,6 +4,11 @@
  *
  * This service is responsible for sending emails via the Resend API
  * instead of direct SMTP connections, which are blocked by Vercel.
+ *
+ * Supported Features:
+ * - HTML and plain text email sending
+ * - Error handling and logging
+ * - Async/await promise-based API
  */
 
 const { Resend } = require('resend');
