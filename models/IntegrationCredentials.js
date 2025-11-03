@@ -179,28 +179,48 @@ class IntegrationCredentials {
   /**
    * Update credentials
    * @param {string} userId - Monday user ID
-   * @param {object} data - Fields to update
+   * @param {object} data - Fields to update (aruba_email, aruba_password, smtp_host, smtp_port)
    * @returns {Promise<object>} Updated credentials
    */
   static async update(userId, data) {
+    console.log(`[IntegrationCredentials] ========================================`);
     console.log(`[IntegrationCredentials] Updating credentials for user: ${userId}`);
+    console.log(`[IntegrationCredentials] Input data keys:`, Object.keys(data));
+    console.log(`[IntegrationCredentials] Email provided:`, !!data.aruba_email);
+    console.log(`[IntegrationCredentials] Password provided:`, !!data.aruba_password);
+    console.log(`[IntegrationCredentials] SMTP host provided:`, !!data.smtp_host);
+    console.log(`[IntegrationCredentials] SMTP port provided:`, !!data.smtp_port);
 
     const updateData = {};
 
+    // Update email if provided
     if (data.aruba_email) {
       updateData.arubaEmail = data.aruba_email;
-    }
-    if (data.smtp_host !== undefined) {
-      updateData.smtpHost = data.smtp_host;
-    }
-    if (data.smtp_port !== undefined) {
-      updateData.smtpPort = parseInt(data.smtp_port);
+      console.log(`[IntegrationCredentials] ✓ Email will be updated to:`, data.aruba_email);
     }
 
-    // Encrypt password if provided
-    if (data.aruba_password) {
-      updateData.arubaPassword = this.encrypt(data.aruba_password);
+    // Update SMTP host if provided
+    if (data.smtp_host !== undefined) {
+      updateData.smtpHost = data.smtp_host;
+      console.log(`[IntegrationCredentials] ✓ SMTP host will be updated to:`, data.smtp_host);
     }
+
+    // Update SMTP port if provided
+    if (data.smtp_port !== undefined) {
+      updateData.smtpPort = parseInt(data.smtp_port);
+      console.log(`[IntegrationCredentials] ✓ SMTP port will be updated to:`, parseInt(data.smtp_port));
+    }
+
+    // CRITICAL: Encrypt and update password if provided
+    if (data.aruba_password) {
+      console.log(`[IntegrationCredentials] ⚠️ Password provided - encrypting...`);
+      const encryptedPassword = this.encrypt(data.aruba_password);
+      updateData.arubaPassword = encryptedPassword;
+      console.log(`[IntegrationCredentials] ✓ Password encrypted (length: ${encryptedPassword.length})`);
+    }
+
+    console.log(`[IntegrationCredentials] Update data prepared:`, Object.keys(updateData));
+    console.log(`[IntegrationCredentials] ========================================`);
 
     try {
       const credentials = await prisma.integrationCredentials.update({
@@ -208,13 +228,21 @@ class IntegrationCredentials {
         data: updateData
       });
 
-      console.log(`[IntegrationCredentials] ✓ Credentials updated for user: ${userId}`);
+      console.log(`[IntegrationCredentials] ✓ Credentials updated successfully for user: ${userId}`);
+      console.log(`[IntegrationCredentials] Updated fields:`, {
+        hasEmail: !!credentials.arubaEmail,
+        hasPassword: !!credentials.arubaPassword,
+        smtpHost: credentials.smtpHost,
+        smtpPort: credentials.smtpPort,
+        updatedAt: credentials.updatedAt
+      });
       return credentials;
     } catch (error) {
       if (error.code === 'P2025') {
-        console.warn(`[IntegrationCredentials] Record not found for user: ${userId}`);
+        console.warn(`[IntegrationCredentials] ✗ Record not found for user: ${userId}`);
         throw new Error('Credenziali non trovate');
       }
+      console.error(`[IntegrationCredentials] ✗ Database error:`, error.code, error.message);
       throw error;
     }
   }
