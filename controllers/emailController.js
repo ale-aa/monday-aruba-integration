@@ -62,79 +62,6 @@ class EmailController {
   }
 
   /**
-   * Crea un transporter nodemailer configurato per Aruba SMTP
-   * @param {Object} credentials - Credenziali dall'utente
-   * @returns {Object} Nodemailer transporter
-   * @throws {Error} Se credenziali sono invalide
-   */
-  static createSMTPTransport(credentials) {
-    if (!credentials) {
-      throw new Error('Credenziali non disponibili');
-    }
-
-    const { aruba_email, aruba_password, smtp_host, smtp_port } = credentials;
-
-    if (!aruba_email || !aruba_password || !smtp_host || !smtp_port) {
-      throw new Error('Credenziali SMTP incomplete');
-    }
-
-    // Determina se usare STARTTLS (porta 587) o SSL/TLS diretto (porta 465)
-    const isPort587 = parseInt(smtp_port) === 587;
-    const isPort465 = parseInt(smtp_port) === 465;
-    const secureConnection = isPort465; // true per 465 (SSL), false per 587 (STARTTLS)
-
-    console.log('[EmailController] ========================================');
-    console.log('[EmailController] Tentativo connessione SMTP...');
-    console.log('[EmailController] Host:', smtp_host);
-    console.log('[EmailController] Port:', parseInt(smtp_port));
-    console.log('[EmailController] Email:', aruba_email);
-    console.log('[EmailController] Protocol:', isPort465 ? 'SSL (465)' : isPort587 ? 'STARTTLS (587)' : 'UNKNOWN');
-    console.log('[EmailController] Secure flag:', secureConnection);
-    console.log('[EmailController] ========================================');
-
-    // Crea transporter nodemailer
-    const transporter = nodemailer.createTransport({
-      host: smtp_host,
-      port: parseInt(smtp_port),
-      secure: secureConnection, // true per porta 465 (SSL), false per 587 (STARTTLS)
-      auth: {
-        user: aruba_email,
-        pass: aruba_password
-      },
-      // Opzioni aggiuntive
-      logger: true,
-      debug: true,
-      connectionTimeout: 60000, // 60 secondi per timeout di rete/Vercel
-      greetingTimeout: 30000,
-      socketTimeout: 60000,
-      tls: {
-        rejectUnauthorized: false, // accetta certificati self-signed
-        minVersion: 'TLSv1.2'
-      }
-    });
-
-    // TEST IMMEDIATO della connessione per diagnosticare problemi di rete
-    console.log('[EmailController] Testing SMTP connection...');
-    const testStartTime = Date.now();
-
-    transporter.verify((error, success) => {
-      const duration = Date.now() - testStartTime;
-
-      if (error) {
-        console.error('[EmailController] ✗ SMTP verification FAILED after', duration, 'ms');
-        console.error('[EmailController] Error type:', error.code || 'UNKNOWN');
-        console.error('[EmailController] Error message:', error.message);
-        console.error('[EmailController] Error details:', JSON.stringify(error, null, 2));
-      } else {
-        console.log('[EmailController] ✓ SMTP verification SUCCESS after', duration, 'ms');
-        console.log('[EmailController] Connection is ready for sending emails');
-      }
-    });
-
-    return transporter;
-  }
-
-  /**
    * Invia un'email usando le credenziali dell'utente
    * POST /monday/sendEmail
    *
@@ -535,10 +462,10 @@ class EmailController {
     }
   }
 
-  /**
-   * Testa la configurazione SMTP dell'utente
-   * POST /monday/testSMTP
-   */
+  // ===== DEPRECATED: testSMTP method =====
+  // This method is no longer needed - we use Resend API instead of SMTP
+  // Keeping commented for reference
+  /*
   static async testSMTP(req, res) {
     try {
       const userId = req.monday?.userId;
@@ -599,6 +526,7 @@ class EmailController {
       });
     }
   }
+  */
 }
 
 module.exports = EmailController;
