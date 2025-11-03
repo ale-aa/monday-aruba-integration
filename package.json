@@ -6,13 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "build": "npm run prisma:generate",
+    "postinstall": "npm run prisma:generate",
     "test": "npm run test:db && npm run test:jwt && npm run test:auth && npm run test:email",
     "test:db": "node test-database.js",
     "test:jwt": "node test-jwt-validation.js",
     "test:auth": "node test-auth-endpoints.js",
     "test:email": "node test-email-endpoints.js",
     "test:all": "echo '=== Running All Tests ===' && npm run test",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "node scripts/prisma-generate.js",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate deploy"
   },
@@ -34,15 +36,14 @@
     "npm": ">=6.0.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.18.0",
+    "@prisma/client": "6.18.0",
     "@supabase/supabase-js": "^2.78.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^7.0.10"
-  },
-  "devDependencies": {
-    "prisma": "^6.0.0"
+    "nodemailer": "^7.0.10",
+    "prisma": "6.18.0",
+    "resend": "^6.4.0"
   }
 }

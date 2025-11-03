@@ -1,9 +1,11 @@
 const nodemailer = require('nodemailer');
 const IntegrationCredentials = require('../models/IntegrationCredentials');
 const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
+const emailService = require('../services/emailService');
 
 /**
- * Controller per gestire l'invio di email via SMTP Aruba
+ * Controller per gestire l'invio di email
+ * Utilizza Resend API per aggirare il blocco porte di Vercel
  */
 class EmailController {
   /**
@@ -451,120 +453,67 @@ class EmailController {
 
       console.log(`[EmailController] Found credentials: ${credentials.aruba_email}`);
 
-      // DEBUG: Log password details before creating transporter
-      console.log('[EmailController] ========== PASSWORD DEBUG ==========');
-      console.log('[EmailController] Password exists:', !!credentials.aruba_password);
-      console.log('[EmailController] Password length:', credentials.aruba_password?.length);
-      console.log('[EmailController] Password type:', typeof credentials.aruba_password);
-      if (credentials.aruba_password) {
-        console.log('[EmailController] Password first 3 chars:', credentials.aruba_password.substring(0, 3));
-        console.log('[EmailController] Password last 3 chars:', credentials.aruba_password.substring(Math.max(0, credentials.aruba_password.length - 3)));
-        console.log('[EmailController] Password contains special chars:', /[!@#$%^&*]/.test(credentials.aruba_password));
-      }
-      console.log('[EmailController] ====================================');
+      // NOTA: Non più necessario connettersi a SMTP
+      // Usiamo Resend API via HTTPS per aggirare il blocco porte di Vercel
 
-      // Crea transporter SMTP
-      let transporter;
+      console.log('[EmailController] ========== SENDING VIA RESEND API ==========');
+      console.log('[EmailController] To:', recipient_email);
+      console.log('[EmailController] Subject:', subject);
+      console.log('[EmailController] ==========================================');
+
+      // Invia email tramite Resend API
       try {
-        transporter = this.createSMTPTransport(credentials);
-      } catch (transportError) {
-        console.error(`[EmailController] Errore creazione transporter: ${transportError.message}`);
-        return res.status(500).json({
-          success: false,
-          error: 'Configurazione SMTP errata',
-          message: transportError.message
+        const result = await emailService.sendEmail({
+          to: recipient_email.trim(),
+          subject: subject.trim(),
+          body: typeof body === 'string' ? body : JSON.stringify(body, null, 2),
+          from: 'onboarding@resend.dev' // Email verificata su Resend
         });
-      }
 
-      // Prepara opzioni email
-      const mailOptions = {
-        from: credentials.aruba_email,
-        to: recipient_email.trim(),
-        subject: subject.trim(),
-        text: typeof body === 'string' ? body : JSON.stringify(body, null, 2),
-        headers: {
-          'X-Mailer': 'Monday.com Aruba Integration',
-          'X-User-ID': userId
-        }
-      };
+        const duration = Date.now() - startTime;
+        console.log('[EmailController] ✅ Email inviata con successo!');
+        console.log('[EmailController] Message ID:', result.messageId);
+        console.log('[EmailController] Provider:', result.provider);
+        console.log('[EmailController] Duration:', duration, 'ms');
 
-      // Aggiungi CC se presente
-      if (cc) {
-        const ccArray = Array.isArray(cc) ? cc : [cc];
-        mailOptions.cc = ccArray.filter(email => email && email.trim()).join(', ');
-      }
+        logAuthSuccess({
+          userId,
+          method: 'sendEmail',
+          source: 'Email Sent via Resend'
+        });
 
-      // Aggiungi BCC se presente
-      if (bcc) {
-        const bccArray = Array.isArray(bcc) ? bcc : [bcc];
-        mailOptions.bcc = bccArray.filter(email => email && email.trim()).join(', ');
-      }
+        // Ritorna successo
+        return res.status(200).json({
+          success: true,
+          message: 'Email inviata con successo tramite Resend',
+          messageId: result.messageId,
+          provider: result.provider,
+          timestamp: new Date().toISOString(),
+          duration_ms: duration,
+          details: {
+            to: recipient_email,
+            subject: subject
+          }
+        });
 
-      console.log(
-        `[EmailController] Sending email: to=${mailOptions.to}, subject="${mailOptions.subject}"`
-      );
+      } catch (error) {
+        const errorMessage = error.message || 'Errore sconosciuto';
+        console.error('[EmailController] ❌ Errore invio email:', errorMessage);
 
-      // Invia email
-      let info;
-      try {
-        info = await transporter.sendMail(mailOptions);
-      } catch (smtpError) {
-        const errorMessage = smtpError.message || 'Errore sconosciuto SMTP';
-        console.error(`[EmailController] Errore SMTP: ${errorMessage}`);
-
-        // Log specifici per errori comuni
-        if (errorMessage.includes('Invalid login') || errorMessage.includes('Authentication')) {
-          logAuthFailure({
-            reason: 'SMTP authentication failed',
-            method: 'sendEmail',
-            statusCode: 401
-          });
-          return res.status(401).json({
-            success: false,
-            error: 'Autenticazione SMTP fallita',
-            message: 'Le credenziali Aruba non sono valide. Riconfigurare le credenziali.'
-          });
-        }
-
-        if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('EHOSTUNREACH')) {
-          return res.status(503).json({
-            success: false,
-            error: 'Server SMTP non raggiungibile',
-            message: 'Il server Aruba SMTP non è raggiungibile. Riprovare più tardi.'
-          });
-        }
+        logAuthFailure({
+          reason: 'Email send failed via Resend',
+          method: 'sendEmail',
+          statusCode: 500,
+          userId
+        });
 
         return res.status(500).json({
           success: false,
-          error: 'Errore invio email',
-          message: errorMessage
+          error: 'Impossibile inviare email',
+          message: errorMessage,
+          provider: 'resend'
         });
       }
-
-      const duration = Date.now() - startTime;
-      console.log(
-        `[EmailController] Email inviata con successo: ${info.messageId} (${duration}ms)`
-      );
-
-      logAuthSuccess({
-        userId,
-        method: 'sendEmail',
-        source: 'Email Sent'
-      });
-
-      // Ritorna successo
-      res.status(200).json({
-        success: true,
-        message: 'Email inviata con successo',
-        messageId: info.messageId,
-        timestamp: new Date().toISOString(),
-        duration_ms: duration,
-        details: {
-          from: mailOptions.from,
-          to: mailOptions.to,
-          subject: mailOptions.subject
-        }
-      });
 
     } catch (error) {
       const duration = Date.now() - startTime;
