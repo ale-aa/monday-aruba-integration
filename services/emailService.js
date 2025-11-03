@@ -1,6 +1,9 @@
 /**
  * Email Service using Resend API
  * Bypasses Vercel SMTP port blocking by using HTTPS (port 443)
+ *
+ * This service is responsible for sending emails via the Resend API
+ * instead of direct SMTP connections, which are blocked by Vercel.
  */
 
 const { Resend } = require('resend');
