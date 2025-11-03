@@ -445,6 +445,18 @@ class EmailController {
 
       console.log(`[EmailController] Found credentials: ${credentials.aruba_email}`);
 
+      // DEBUG: Log password details before creating transporter
+      console.log('[EmailController] ========== PASSWORD DEBUG ==========');
+      console.log('[EmailController] Password exists:', !!credentials.aruba_password);
+      console.log('[EmailController] Password length:', credentials.aruba_password?.length);
+      console.log('[EmailController] Password type:', typeof credentials.aruba_password);
+      if (credentials.aruba_password) {
+        console.log('[EmailController] Password first 3 chars:', credentials.aruba_password.substring(0, 3));
+        console.log('[EmailController] Password last 3 chars:', credentials.aruba_password.substring(Math.max(0, credentials.aruba_password.length - 3)));
+        console.log('[EmailController] Password contains special chars:', /[!@#$%^&*]/.test(credentials.aruba_password));
+      }
+      console.log('[EmailController] ====================================');
+
       // Crea transporter SMTP
       let transporter;
       try {
