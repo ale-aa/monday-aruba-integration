@@ -258,4 +258,73 @@ router.post('/monday/update-credentials/:userId', async (req, res) => {
   }
 });
 
+/**
+ * GET /monday/check-credentials/:userId
+ * Legge le credenziali di un utente (SENZA mostrare la password)
+ *
+ * Parametri URL:
+ * - userId: ID utente Monday.com
+ *
+ * Risposta (credenziali trovate):
+ * {
+ *   "success": true,
+ *   "credentials": {
+ *     "userId": "95416079",
+ *     "email": "user@aruba.it",
+ *     "smtp_host": "smtp.aruba.it",
+ *     "smtp_port": 465,
+ *     "hasPassword": true,
+ *     "passwordLength": 64,
+ *     "created_at": "2025-11-01T10:00:00Z",
+ *     "updated_at": "2025-11-03T15:30:00Z"
+ *   }
+ * }
+ *
+ * Risposta (credenziali non trovate):
+ * {
+ *   "success": false,
+ *   "message": "No credentials found"
+ * }
+ */
+router.get('/monday/check-credentials/:userId', async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    console.log('[CheckCredentials] Checking credentials for userId:', userId);
+
+    const IntegrationCredentials = require('../models/IntegrationCredentials');
+    const credentials = await IntegrationCredentials.findByUserId(userId);
+
+    if (!credentials) {
+      console.warn('[CheckCredentials] No credentials found for userId:', userId);
+      return res.status(200).json({
+        success: false,
+        message: 'No credentials found'
+      });
+    }
+
+    console.log('[CheckCredentials] Credentials found for userId:', userId);
+
+    // Ritorna credenziali SENZA mostrare la password
+    return res.status(200).json({
+      success: true,
+      credentials: {
+        userId: credentials.userId,
+        email: credentials.aruba_email,
+        smtp_host: credentials.smtp_host,
+        smtp_port: credentials.smtp_port,
+        hasPassword: !!credentials.aruba_password,
+        created_at: credentials.created_at,
+        updated_at: credentials.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('[CheckCredentials] Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
