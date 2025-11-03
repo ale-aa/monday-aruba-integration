@@ -327,4 +327,60 @@ router.get('/monday/check-credentials/:userId', async (req, res) => {
   }
 });
 
+/**
+ * DELETE /monday/delete-credentials/:userId
+ * Elimina le credenziali di un utente
+ *
+ * Parametri URL:
+ * - userId: ID utente Monday.com
+ *
+ * Risposta:
+ * {
+ *   "success": true/false,
+ *   "message": "Credentials deleted successfully" / error message
+ * }
+ */
+router.delete('/monday/delete-credentials/:userId', async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    console.log('[DeleteCredentials] Deleting credentials for userId:', userId);
+
+    const IntegrationCredentials = require('../models/IntegrationCredentials');
+
+    // Validazione input
+    if (!userId) {
+      console.warn('[DeleteCredentials] Missing userId parameter');
+      return res.status(400).json({
+        success: false,
+        error: 'userId è obbligatorio'
+      });
+    }
+
+    // Elimina le credenziali dal database
+    const deleted = await IntegrationCredentials.delete(userId);
+
+    if (!deleted) {
+      console.warn('[DeleteCredentials] No credentials found to delete for userId:', userId);
+      return res.status(404).json({
+        success: false,
+        message: 'No credentials found for this user'
+      });
+    }
+
+    console.log('[DeleteCredentials] Credentials deleted successfully for userId:', userId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Credentials deleted successfully'
+    });
+  } catch (error) {
+    console.error('[DeleteCredentials] Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
