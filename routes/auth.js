@@ -176,4 +176,86 @@ router.post('/monday/update-smtp/:userId', async (req, res) => {
   }
 });
 
+/**
+ * POST /monday/update-credentials/:userId
+ * Aggiorna le credenziali complete (email, password, SMTP settings)
+ *
+ * Parametri URL:
+ * - userId: ID utente Monday.com
+ *
+ * Body:
+ * {
+ *   "aruba_email": "user@aruba.it" (obbligatorio),
+ *   "aruba_password": "password123" (obbligatorio),
+ *   "smtp_host": "smtp.aruba.it" (opzionale, default: smtp.aruba.it),
+ *   "smtp_port": 465 (opzionale, default: 465)
+ * }
+ *
+ * Risposta:
+ * {
+ *   "success": true/false,
+ *   "message": "Credentials updated successfully",
+ *   "email": "user@aruba.it",
+ *   "smtp_host": "smtp.aruba.it",
+ *   "smtp_port": 465
+ * }
+ */
+router.post('/monday/update-credentials/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const { aruba_email, aruba_password, smtp_host, smtp_port } = req.body;
+
+  try {
+    console.log('[UpdateCredentials] Updating credentials for userId:', userId);
+
+    // Validazione input
+    if (!aruba_email || !aruba_password) {
+      console.warn('[UpdateCredentials] Missing required fields: aruba_email or aruba_password');
+      return res.status(400).json({
+        success: false,
+        error: 'aruba_email and aruba_password are required'
+      });
+    }
+
+    // Validazione email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(aruba_email)) {
+      console.warn('[UpdateCredentials] Invalid email format:', aruba_email);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    const IntegrationCredentials = require('../models/IntegrationCredentials');
+
+    // Aggiorna nel database
+    const updateData = {
+      aruba_email,
+      aruba_password, // Il model gestisce la criptazione
+      smtp_host: smtp_host || 'smtp.aruba.it',
+      smtp_port: smtp_port || 465
+    };
+
+    console.log('[UpdateCredentials] Update data prepared for userId:', userId);
+
+    await IntegrationCredentials.update(userId, updateData);
+
+    console.log('[UpdateCredentials] Credentials updated successfully for userId:', userId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Credentials updated successfully',
+      email: aruba_email,
+      smtp_host: updateData.smtp_host,
+      smtp_port: updateData.smtp_port
+    });
+  } catch (error) {
+    console.error('[UpdateCredentials] Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
