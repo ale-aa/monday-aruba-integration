@@ -76,19 +76,25 @@ class EmailController {
       throw new Error('Credenziali SMTP incomplete');
     }
 
+    // Determina se usare STARTTLS (porta 587) o SSL/TLS diretto (porta 465)
+    const isPort587 = parseInt(smtp_port) === 587;
+    const isPort465 = parseInt(smtp_port) === 465;
+    const secureConnection = isPort465; // true per 465 (SSL), false per 587 (STARTTLS)
+
     console.log('[EmailController] ========================================');
     console.log('[EmailController] Tentativo connessione SMTP...');
     console.log('[EmailController] Host:', smtp_host);
     console.log('[EmailController] Port:', parseInt(smtp_port));
     console.log('[EmailController] Email:', aruba_email);
-    console.log('[EmailController] Secure (TLS):', parseInt(smtp_port) === 465);
+    console.log('[EmailController] Protocol:', isPort465 ? 'SSL (465)' : isPort587 ? 'STARTTLS (587)' : 'UNKNOWN');
+    console.log('[EmailController] Secure flag:', secureConnection);
     console.log('[EmailController] ========================================');
 
     // Crea transporter nodemailer
     const transporter = nodemailer.createTransport({
       host: smtp_host,
       port: parseInt(smtp_port),
-      secure: parseInt(smtp_port) === 465, // true per porta 465 (SSL), false per 587 (STARTTLS)
+      secure: secureConnection, // true per porta 465 (SSL), false per 587 (STARTTLS)
       auth: {
         user: aruba_email,
         pass: aruba_password
