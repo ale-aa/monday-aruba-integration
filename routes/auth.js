@@ -383,4 +383,100 @@ router.delete('/monday/delete-credentials/:userId', async (req, res) => {
   }
 });
 
+/**
+ * POST /monday/create-credentials/:userId
+ * Crea nuove credenziali Aruba per un utente
+ *
+ * Parametri URL:
+ * - userId: ID utente Monday.com
+ *
+ * Body:
+ * {
+ *   "aruba_email": "user@aruba.it" (obbligatorio),
+ *   "aruba_password": "password123" (obbligatorio),
+ *   "smtp_host": "smtp.aruba.it" (opzionale, default: smtp.aruba.it),
+ *   "smtp_port": 465 (opzionale, default: 465)
+ * }
+ *
+ * Risposta (successo):
+ * {
+ *   "success": true,
+ *   "message": "Credentials created successfully",
+ *   "email": "user@aruba.it",
+ *   "smtp_host": "smtp.aruba.it",
+ *   "smtp_port": 465
+ * }
+ *
+ * Risposta (errore):
+ * {
+ *   "success": false,
+ *   "error": "error message"
+ * }
+ */
+router.post('/monday/create-credentials/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const { aruba_email, aruba_password, smtp_host, smtp_port } = req.body;
+
+  try {
+    console.log('[CreateCredentials] Creating credentials for userId:', userId);
+
+    // Validazione input
+    if (!aruba_email || !aruba_password) {
+      console.warn('[CreateCredentials] Missing required fields: aruba_email or aruba_password');
+      return res.status(400).json({
+        success: false,
+        error: 'aruba_email and aruba_password are required'
+      });
+    }
+
+    // Validazione email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(aruba_email)) {
+      console.warn('[CreateCredentials] Invalid email format:', aruba_email);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    const IntegrationCredentials = require('../models/IntegrationCredentials');
+
+    // Elimina credenziali esistenti se presenti (per evitare unique constraint)
+    try {
+      const deleted = await IntegrationCredentials.delete(userId);
+      if (deleted) {
+        console.log('[CreateCredentials] Deleted existing credentials for userId:', userId);
+      }
+    } catch (deleteError) {
+      console.log('[CreateCredentials] No existing credentials to delete for userId:', userId);
+    }
+
+    // Crea nuove credenziali
+    const credentials = await IntegrationCredentials.create({
+      userId,
+      accountId: '32281405', // Account ID fisso per Monday.com
+      aruba_email,
+      aruba_password,
+      smtp_host: smtp_host || 'smtp.aruba.it',
+      smtp_port: smtp_port || 465
+    });
+
+    console.log('[CreateCredentials] Credentials created successfully for userId:', userId);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Credentials created successfully',
+      email: aruba_email,
+      smtp_host: credentials.smtpHost,
+      smtp_port: credentials.smtpPort
+    });
+  } catch (error) {
+    console.error('[CreateCredentials] Error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
