@@ -1,77 +1,58 @@
-/**
- * Email Service using Resend API
- * Bypasses Vercel SMTP port blocking by using HTTPS (port 443)
- *
- * This service is responsible for sending emails via the Resend API
- * instead of direct SMTP connections, which are blocked by Vercel.
- *
- * Supported Features:
- * - HTML and plain text email sending
- * - Error handling and logging
- * - Async/await promise-based API
- */
-
 const { Resend } = require('resend');
 
 class EmailService {
   constructor() {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('[EmailService] ⚠️ RESEND_API_KEY not configured');
+    const apiKey = process.env.RESEND_API_KEY;
+
+    if (!apiKey || !apiKey.trim()) {
+      console.warn('[EmailService] RESEND_API_KEY not configured — emails will be skipped');
+      this.resend = null;
+      return;
     }
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+
+    this.resend = new Resend(apiKey.trim());
   }
 
   /**
-   * Invia email tramite Resend API
-   * @param {Object} params - Email parameters
-   * @param {string} params.to - Recipient email
-   * @param {string} params.subject - Email subject
-   * @param {string} params.body - Email body (plain text)
-   * @param {string} params.from - Sender email (must be verified on Resend)
-   * @returns {Promise<Object>} Result with messageId and provider
+   * Invia un'email tramite Resend API
+   * @param {Object} options - Opzioni email
+   * @param {string} options.to - Email destinatario
+   * @param {string} options.subject - Subject dell'email
+   * @param {string} options.body - Corpo dell'email (testo semplice o HTML)
+   * @param {string} options.from - Email mittente
+   * @returns {Promise<{messageId: string, id: string}>}
    */
   async sendEmail({ to, subject, body, from = 'onboarding@resend.dev' }) {
-    try {
-      console.log('[EmailService] ========================================');
-      console.log('[EmailService] Sending via Resend API...');
-      console.log('[EmailService] To:', to);
-      console.log('[EmailService] From:', from);
-      console.log('[EmailService] Subject:', subject);
-      console.log('[EmailService] Body length:', body.length);
-      console.log('[EmailService] ========================================');
+    if (!this.resend) {
+      throw new Error('RESEND_API_KEY non configurata');
+    }
 
-      // Chiama Resend API
-      const { data, error } = await this.resend.emails.send({
+    console.log('[EmailService] Sending email via Resend API');
+    console.log('  - To:', to);
+    console.log('  - Subject:', subject);
+    console.log('  - From:', from);
+
+    try {
+      const response = await this.resend.emails.send({
         from: from,
-        to: [to],
+        to: to,
         subject: subject,
-        html: `<div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6;">
-          <p>${body.replace(/\n/g, '<br>')}</p>
-          <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-          <p style="color: #666; font-size: 12px;">Inviato via Resend Email API</p>
-        </div>`,
-        text: body
+        html: body, // Resend API usa 'html' per il corpo del messaggio
       });
 
-      if (error) {
-        console.error('[EmailService] ❌ Resend API error:', error);
-        throw new Error(`Resend API error: ${error.message || JSON.stringify(error)}`);
-      }
+      console.log('[EmailService] Email sent successfully. Response ID:', response.id);
 
-      console.log('[EmailService] ✅ Email sent successfully!');
-      console.log('[EmailService] Email ID:', data.id);
-      console.log('[EmailService] ========================================');
-
+      // Ritorna con 'messageId' per compatibilità con il controller
       return {
-        success: true,
-        messageId: data.id,
-        provider: 'resend'
+        messageId: response.id,
+        id: response.id,
+        ...response
       };
     } catch (error) {
-      console.error('[EmailService] ❌ Error sending email:', error.message);
-      throw error;
+      console.error('[EmailService] Resend API error:', error);
+      throw new Error(`Resend API error: ${error.message}`);
     }
   }
 }
 
-module.exports = new EmailService();
+module.exports = EmailService;
