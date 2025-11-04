@@ -15,7 +15,7 @@ const emailRoutes = require('./routes/email');
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(express.json());
@@ -38,11 +38,7 @@ app.get('/health', (req, res) => {
 
 // Root endpoint (no rate limiting)
 app.get('/', (req, res) => {
-  res.json({
-    name: 'Monday.com - Aruba Mail Integration',
-    version: '1.0.0',
-    status: 'running'
-  });
+  res.send('OK');
 });
 
 // Test endpoint (no rate limiting)
