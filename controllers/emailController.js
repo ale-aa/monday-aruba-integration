@@ -1,10 +1,11 @@
 const IntegrationCredentials = require('../models/IntegrationCredentials');
 const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
-const emailService = require('../services/emailService');
+const EmailService = require('../services/emailService');
+const emailService = new EmailService();
 
 /**
- * Controller per gestire l'invio di email tramite Resend API
- * NOTA: Non usa più SMTP per evitare il blocco porte di Vercel
+ * Controller per gestire l'invio di email tramite SMTP di Aruba
+ * NOTA: Su Monday Code non è bloccato l'accesso alle porte SMTP
  */
 class EmailController {
   /**
@@ -32,7 +33,7 @@ class EmailController {
   }
 
   /**
-   * Invia un'email usando Resend API
+   * Invia un'email usando SMTP di Aruba
    * POST /monday/sendEmail
    */
   static async sendEmail(req, res) {
@@ -147,19 +148,38 @@ class EmailController {
         });
       }
 
-      // Recupera credenziali (opzionale, per compatibilità futura)
-      console.log('[EmailController] Checking credentials for userId:', userId);
+      // Recupera credenziali Aruba (OBBLIGATORIE per SMTP)
+      console.log('[EmailController] ========================================');
+      console.log('[EmailController] Retrieving Aruba credentials for userId:', userId);
+      console.log('[EmailController] userId type:', typeof userId, 'value:', userId);
+      console.log('[EmailController] ========================================');
+
       const credentials = await IntegrationCredentials.findByUserIdWithPassword(userId);
 
+      console.log('[EmailController] Credentials query result:', !!credentials);
       if (credentials) {
-        console.log('[EmailController] Credentials found:', credentials.aruba_email);
-      } else {
-        console.log('[EmailController] No credentials found (not required for Resend)');
+        console.log('[EmailController] Credentials keys:', Object.keys(credentials));
       }
 
-      // ========== INVIO VIA RESEND API ==========
+      if (!credentials) {
+        console.error('[EmailController] ❌ No credentials found for user:', userId);
+        console.error('[EmailController] This means the user has NOT logged in with Aruba credentials yet');
+        return res.status(400).json({
+          success: false,
+          error: 'Credenziali Aruba non configurate. Accedi con le tue credenziali Aruba.',
+          code: 'NO_CREDENTIALS'
+        });
+      }
+
+      console.log('[EmailController] ✓ Credentials found:');
+      console.log('  - Aruba Email:', credentials.aruba_email);
+      console.log('  - SMTP Host:', credentials.smtp_host);
+      console.log('  - SMTP Port:', credentials.smtp_port);
+
+      // ========== INVIO VIA SMTP ARUBA ==========
       console.log('[EmailController] ========================================');
-      console.log('[EmailController] SENDING VIA RESEND API');
+      console.log('[EmailController] SENDING VIA ARUBA SMTP');
+      console.log('[EmailController] From (Aruba):', credentials.aruba_email);
       console.log('[EmailController] To:', recipient_email);
       console.log('[EmailController] Subject:', subject);
       console.log('[EmailController] ========================================');
@@ -169,34 +189,40 @@ class EmailController {
           to: recipient_email,
           subject: subject,
           body: body,
-          from: 'onboarding@resend.dev'
+          from: credentials.aruba_email, // Email Aruba come mittente
+          arubaEmail: credentials.aruba_email, // Username SMTP
+          arubaPassword: credentials.aruba_password, // Password SMTP
+          smtpHost: credentials.smtp_host,
+          smtpPort: credentials.smtp_port
         });
 
         const duration = Date.now() - startTime;
         console.log('[EmailController] ✅ Email sent successfully!');
         console.log('[EmailController] Message ID:', result.messageId);
+        console.log('[EmailController] Response:', result.response);
         console.log('[EmailController] Duration:', duration, 'ms');
 
         logAuthSuccess({
           userId,
           method: 'sendEmail',
-          source: 'Resend API'
+          source: 'Aruba SMTP'
         });
 
         return res.status(200).json({
           success: true,
-          message: 'Email inviata con successo tramite Resend',
+          message: 'Email inviata con successo tramite Aruba SMTP',
           messageId: result.messageId,
-          provider: 'resend',
+          provider: 'aruba_smtp',
+          from: credentials.aruba_email,
           timestamp: new Date().toISOString(),
           duration_ms: duration
         });
 
       } catch (emailError) {
-        console.error('[EmailController] ❌ Resend error:', emailError.message);
+        console.error('[EmailController] ❌ SMTP error:', emailError.message);
 
         logAuthFailure({
-          reason: 'Email send failed',
+          reason: 'Email send failed: ' + emailError.message,
           method: 'sendEmail',
           statusCode: 500,
           userId
@@ -204,9 +230,10 @@ class EmailController {
 
         return res.status(500).json({
           success: false,
-          error: 'Impossibile inviare email',
+          error: 'Impossibile inviare email tramite Aruba SMTP',
           message: emailError.message,
-          provider: 'resend'
+          provider: 'aruba_smtp',
+          code: emailError.code || 'SMTP_ERROR'
         });
       }
 

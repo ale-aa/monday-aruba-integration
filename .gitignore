@@ -37,3 +37,4 @@ logs/
 # Output directories
 dist/
 build/
+.vercel

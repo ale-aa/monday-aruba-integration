@@ -71,17 +71,8 @@ class AuthController {
         source: 'Monday.com'
       });
 
-      // Se credenziali già esistono per questo userId, ridireziona direttamente a backToUrl
-      try {
-        const existing = await IntegrationCredentials.findByUserId(userId);
-        if (existing) {
-          console.log(`[AuthController] Credenziali già esistenti per userId: ${userId}. Redirect a backToUrl.`);
-          return res.redirect(backToUrl);
-        }
-      } catch (checkError) {
-        console.error('[AuthController] Errore nel check credenziali esistenti:', checkError);
-        // Continua a mostrare il form anche se il check fallisce
-      }
+      // Mostra sempre il form (non fare redirect automatico se credenziali esistono)
+      // L'utente può aggiornare le credenziali se lo desidera
 
       // Mostra il form HTML per la configurazione
       // backToUrl non deve essere encoded qui: il browser lo farà automaticamente nel form submission

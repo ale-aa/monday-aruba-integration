@@ -41,6 +41,6 @@ const EmailController = require('../controllers/emailController');
  *   "provider": "resend"
  * }
  */
-router.post('/monday/sendEmail', verifyMonday, EmailController.sendEmail);
+router.post('/monday/sendEmail', verifyMonday, (req, res) => EmailController.sendEmail(req, res));
 
 module.exports = router;
