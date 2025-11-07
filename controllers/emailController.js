@@ -107,7 +107,9 @@ class EmailController {
       recipient_email = String(recipient_email || '').trim();
 
       // ESTRAZIONE SUBJECT
+      // Prova a estrarre da: inboundFieldValues.email.subject, inboundFieldValues.subject, etc.
       let subject =
+        (typeof inboundFieldValues.email === 'object' && inboundFieldValues.email?.subject) ||
         inboundFieldValues.subject ||
         inputFields.subject ||
         req.body.subject ||
@@ -119,7 +121,11 @@ class EmailController {
       subject = String(subject).trim();
 
       // ESTRAZIONE BODY
+      // Prova a estrarre da: inboundFieldValues.email.body, inboundFieldValues.body, etc.
       let body =
+        (typeof inboundFieldValues.email === 'object' && inboundFieldValues.email?.body) ||
+        (typeof inboundFieldValues.email === 'object' && inboundFieldValues.email?.message) ||
+        (typeof inboundFieldValues.email === 'object' && inboundFieldValues.email?.text) ||
         inboundFieldValues.body ||
         inboundFieldValues.message ||
         inboundFieldValues.text ||
