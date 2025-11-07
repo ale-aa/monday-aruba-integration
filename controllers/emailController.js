@@ -66,6 +66,12 @@ class EmailController {
    * POST /monday/sendEmail
    */
   static async sendEmail(req, res) {
+    console.log('🔥🔥🔥 SENDEMAIL CALLED ON MONDAY CODE! 🔥🔥🔥');
+    console.log('🔥 URL:', req.url);
+    console.log('🔥 Method:', req.method);
+    console.log('🔥 Headers:', JSON.stringify(req.headers, null, 2).substring(0, 500));
+    console.log('🔥🔥🔥 THIS IS THE MONDAY CODE SERVER 🔥🔥🔥');
+
     const startTime = Date.now();
     let userId;
 
