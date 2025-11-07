@@ -64,6 +64,19 @@ class EmailController {
       const inboundFieldValues = req.body.inboundFieldValues || payload.inboundFieldValues || {};
 
       console.log('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
+      console.log('[EmailController] inputFields:', JSON.stringify(inputFields, null, 2));
+      console.log('[EmailController] req.body keys:', Object.keys(req.body));
+
+      // DEBUG: Mostra TUTTI i campi inviati da Monday
+      console.log('[EmailController] ========== MONDAY PAYLOAD ANALYSIS ==========');
+      console.log('[EmailController] Payload keys:', Object.keys(payload));
+      if (inboundFieldValues) {
+        console.log('[EmailController] inboundFieldValues keys:', Object.keys(inboundFieldValues));
+        Object.entries(inboundFieldValues).forEach(([key, value]) => {
+          console.log(`[EmailController]   - ${key}:`, typeof value === 'object' ? JSON.stringify(value) : value);
+        });
+      }
+      console.log('[EmailController] ================================================');
 
       // ESTRAZIONE EMAIL DESTINATARIO
       let recipient_email =
