@@ -1,17 +1,8 @@
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
 
 class EmailService {
   constructor() {
-    // Inizializza Resend come fallback
-    const resendApiKey = process.env.RESEND_API_KEY;
-    this.resend = resendApiKey ? new Resend(resendApiKey) : null;
-
-    if (this.resend) {
-      console.log('[EmailService] Initialized with Resend fallback');
-    } else {
-      console.log('[EmailService] Initialized (Resend API not configured)');
-    }
+    console.log('[EmailService] Initialized with NodeMailer (SMTP only)');
   }
 
   /**
@@ -113,37 +104,7 @@ class EmailService {
     } catch (smtpError) {
       console.error('[EmailService] ❌ SMTP error:', smtpError.message);
       console.error('[EmailService] SMTP Error code:', smtpError.code);
-
-      // Fallback a Resend se SMTP fallisce
-      if (this.resend) {
-        console.log('[EmailService] Attempting Resend API fallback...');
-        try {
-          const resendPayload = {
-            from: 'onboarding@resend.dev',
-            to: to,
-            subject: subject,
-            html: body
-          };
-
-          const resendResponse = await this.resend.emails.send(resendPayload);
-
-          console.log('[EmailService] ✅ Email sent successfully via Resend (fallback)!');
-          console.log('[EmailService] Resend Message ID:', resendResponse.id);
-
-          return {
-            messageId: resendResponse.id,
-            response: 'Sent via Resend fallback',
-            accepted: [to],
-            rejected: [],
-            provider: 'resend_fallback'
-          };
-        } catch (resendError) {
-          console.error('[EmailService] ❌ Resend fallback also failed:', resendError.message);
-          throw new Error(`Both SMTP and Resend failed. SMTP: ${smtpError.message}, Resend: ${resendError.message}`);
-        }
-      } else {
-        throw new Error(`SMTP error (${smtpError.code}): ${smtpError.message}`);
-      }
+      throw new Error(`SMTP error (${smtpError.code}): ${smtpError.message}`);
     }
   }
 }
