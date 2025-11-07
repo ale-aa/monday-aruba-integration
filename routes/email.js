@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
 const verifyMonday = require('../middleware/verifyMonday');
 const EmailController = require('../controllers/emailController');
 
@@ -42,5 +44,31 @@ const EmailController = require('../controllers/emailController');
  * }
  */
 router.post('/monday/sendEmail', verifyMonday, (req, res) => EmailController.sendEmail(req, res));
+
+/**
+ * GET /debug/email-payloads
+ * Legge i payload ricevuti da Monday per debugging
+ */
+router.get('/debug/email-payloads', (req, res) => {
+  try {
+    const logFile = path.join(process.cwd(), 'logs', 'email-payloads.json');
+    if (!fs.existsSync(logFile)) {
+      return res.status(200).json({
+        message: 'No payloads logged yet',
+        payloads: []
+      });
+    }
+    const content = fs.readFileSync(logFile, 'utf8');
+    const payloads = JSON.parse(content || '[]');
+    res.status(200).json({
+      count: payloads.length,
+      payloads: payloads.slice(-10) // Ultimi 10
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
 
 module.exports = router;

@@ -1,7 +1,36 @@
 const IntegrationCredentials = require('../models/IntegrationCredentials');
 const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
 const EmailService = require('../services/emailService');
+const fs = require('fs');
+const path = require('path');
 const emailService = new EmailService();
+
+// Helper per salvare payload in file
+function savePayloadLog(payload, userId) {
+  try {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+      timestamp,
+      userId,
+      payload
+    };
+    const logDir = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logFile = path.join(logDir, 'email-payloads.json');
+    let logs = [];
+    if (fs.existsSync(logFile)) {
+      const existing = fs.readFileSync(logFile, 'utf8');
+      logs = JSON.parse(existing || '[]');
+    }
+    logs.push(logEntry);
+    fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
+    console.log('[EmailController] Payload saved to file');
+  } catch (err) {
+    console.error('[EmailController] Error saving payload:', err.message);
+  }
+}
 
 /**
  * Controller per gestire l'invio di email tramite SMTP di Aruba
@@ -46,10 +75,13 @@ class EmailController {
       userId = String(rawUserId);
 
       console.log('=============================================');
-      console.log('SEND EMAIL - RESEND API');
+      console.log('SEND EMAIL - ARUBA SMTP');
       console.log('=============================================');
       console.log('UserId:', userId);
       console.log('Payload:', JSON.stringify(req.body, null, 2));
+
+      // Salva il payload per debugging
+      savePayloadLog(req.body, userId);
 
       if (!userId || userId === 'undefined') {
         return res.status(400).json({
