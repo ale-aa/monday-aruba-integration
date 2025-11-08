@@ -117,13 +117,17 @@ class EmailController {
       console.log('[EmailController] ================================================');
 
       // ESTRAZIONE EMAIL DESTINATARIO
+      // Supporta sia la struttura {{someone}} che {{email}} / {{recipient_email}}
       let recipient_email =
-        inboundFieldValues.email ||
+        inboundFieldValues.someone ||      // ✓ Campo "someone" da Monday automation
         inboundFieldValues.recipient_email ||
         inboundFieldValues.to ||
+        inboundFieldValues.email ||
+        inputFields.someone ||
         inputFields.email ||
         inputFields.recipient_email ||
         req.body.recipient_email ||
+        req.body.someone ||
         null;
 
       // Se è oggetto, estrai il valore
