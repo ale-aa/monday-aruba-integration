@@ -1,3 +1,19 @@
+/**
+ * EmailController - Gestione invio email tramite SMTP Aruba
+ *
+ * Flusso automation Monday:
+ * When status changes → send {{email}} to {{someone}}
+ *
+ * Estrae da inboundFieldValues:
+ * - {{someone}} → destinatario email
+ * - {{email.subject}} → oggetto email
+ * - {{email.body}} → corpo email
+ *
+ * Invia via SMTP Aruba con credenziali dell'utente
+ *
+ * Updated: 2025-11-08 - Test completo OK, flusso automation verificato
+ */
+
 const IntegrationCredentials = require('../models/IntegrationCredentials');
 const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
 const EmailService = require('../services/emailService');
