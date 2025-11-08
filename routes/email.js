@@ -7,40 +7,47 @@ const EmailController = require('../controllers/emailController');
 
 /**
  * POST /monday/sendEmail
- * Invia un'email usando Resend API
+ * Invia un'email usando SMTP di Aruba
  *
  * Header richiesto:
  * - Authorization: Bearer <JWT_TOKEN>
  *
  * Body (application/json):
  * {
- *   "recipient_email": "user@example.com",
- *   "subject": "Email Subject",
- *   "body": "Email content"
+ *   "inboundFieldValues": {
+ *     "someone": "recipient@example.com",
+ *     "email": {
+ *       "subject": "Email Subject",
+ *       "body": "Email content"
+ *     }
+ *   }
  * }
  *
  * Risposta di Successo (200):
  * {
  *   "success": true,
- *   "message": "Email inviata con successo tramite Resend",
+ *   "message": "Email inviata con successo tramite Aruba SMTP",
  *   "messageId": "...",
- *   "provider": "resend",
- *   "timestamp": "2025-11-01T...",
+ *   "provider": "aruba_smtp",
+ *   "from": "your_email@aruba.it",
+ *   "timestamp": "2025-11-08T...",
  *   "duration_ms": 1234
  * }
  *
- * Errore - Parametri mancanti (400):
+ * Errore - Credenziali mancanti (400):
  * {
  *   "success": false,
- *   "error": "recipient_email è obbligatorio"
+ *   "error": "Credenziali Aruba non configurate. Accedi con le tue credenziali Aruba.",
+ *   "code": "NO_CREDENTIALS"
  * }
  *
  * Errore - Invio fallito (500):
  * {
  *   "success": false,
- *   "error": "Impossibile inviare email",
+ *   "error": "Impossibile inviare email tramite Aruba SMTP",
  *   "message": "...",
- *   "provider": "resend"
+ *   "provider": "aruba_smtp",
+ *   "code": "SMTP_ERROR"
  * }
  */
 router.post('/monday/sendEmail', verifyMonday, (req, res) => EmailController.sendEmail(req, res));
