@@ -25,8 +25,8 @@ class EmailService {
     from,
     arubaEmail,
     arubaPassword,
-    smtpHost = 'smtps.aruba.it',
-    smtpPort = 465
+    smtpHost = 'smtp.aruba.it',
+    smtpPort = 587
   }) {
     if (!arubaEmail || !arubaPassword) {
       throw new Error('Credenziali Aruba mancanti (email e password richieste)');
@@ -46,11 +46,12 @@ class EmailService {
     console.log('[EmailService] ========================================');
 
     try {
-      // Crea transporter SMTP di Aruba con SSL/TLS
+      // Crea transporter SMTP di Aruba con STARTTLS
       const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: smtpPort,
-        secure: true, // true per porta 465, false per altri (useSTARTTLS)
+        secure: false, // false per STARTTLS (porta 587)
+        requireTLS: true,
         auth: {
           user: arubaEmail,
           pass: arubaPassword
