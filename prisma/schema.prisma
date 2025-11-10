@@ -21,7 +21,7 @@ model IntegrationCredentials {
   arubaEmail    String    @db.VarChar(255)
   // Password is encrypted with AES-256-CBC before storing
   arubaPassword String    @db.Text
-  smtpHost      String    @default("mail.aruba.it") @db.VarChar(255)
+  smtpHost      String    @default("smtps.aruba.it") @db.VarChar(255)
   smtpPort      Int       @default(465)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

@@ -224,18 +224,18 @@ class AuthController {
               </div>
 
               <div class="form-group">
-                <label for="smtp_host">Server SMTP</label>
+                <label for="smtp_host">Posta in uscita (SMTP)</label>
                 <input
                   type="text"
                   id="smtp_host"
                   name="smtp_host"
-                  placeholder="mail.aruba.it"
-                  value="mail.aruba.it"
+                  placeholder="smtps.aruba.it"
+                  value="smtps.aruba.it"
                 >
               </div>
 
               <div class="form-group">
-                <label for="smtp_port">Porta SMTP</label>
+                <label for="smtp_port">Porta Server</label>
                 <input
                   type="number"
                   id="smtp_port"
@@ -245,6 +245,33 @@ class AuthController {
                   min="1"
                   max="65535"
                 >
+              </div>
+
+              <div class="form-group">
+                <label style="display: flex; align-items: center; margin-bottom: 0;">
+                  <input
+                    type="checkbox"
+                    id="use_ssl"
+                    name="use_ssl"
+                    checked
+                    style="width: auto; margin-right: 8px;"
+                  >
+                  Usa SSL
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label style="display: flex; align-items: center; margin-bottom: 0;">
+                  <input
+                    type="checkbox"
+                    id="use_auth"
+                    name="use_auth"
+                    checked
+                    disabled
+                    style="width: auto; margin-right: 8px;"
+                  >
+                  Autenticazione (sempre attiva per Aruba)
+                </label>
               </div>
 
               <input type="hidden" name="userId" value="${userId}">

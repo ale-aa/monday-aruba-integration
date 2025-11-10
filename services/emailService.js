@@ -14,7 +14,7 @@ class EmailService {
    * @param {string} options.from - Email mittente (email Aruba dell'utente)
    * @param {string} options.arubaEmail - Email Aruba (username per SMTP)
    * @param {string} options.arubaPassword - Password Aruba (password per SMTP)
-   * @param {string} options.smtpHost - SMTP host (default: smtps.aruba.it)
+   * @param {string} options.smtpHost - SMTP host (default: smtps.aruba.it with SSL)
    * @param {number} options.smtpPort - SMTP port (default: 465)
    * @returns {Promise<{messageId: string, response: string}>}
    */
@@ -25,7 +25,7 @@ class EmailService {
     from,
     arubaEmail,
     arubaPassword,
-    smtpHost = 'smtp.aruba.it',
+    smtpHost = 'smtps.aruba.it',
     smtpPort = 465
   }) {
     if (!arubaEmail || !arubaPassword) {
