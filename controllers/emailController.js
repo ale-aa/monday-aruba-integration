@@ -88,6 +88,10 @@ class EmailController {
     console.log('🔥 Headers:', JSON.stringify(req.headers, null, 2).substring(0, 500));
     console.log('🔥🔥🔥 THIS IS THE MONDAY CODE SERVER 🔥🔥🔥');
 
+    // JWT Logging for debugging
+    console.log('🔑 AUTHORIZATION HEADER:', req.headers.authorization);
+    console.log('🔑 FULL JWT TOKEN:', req.headers.authorization?.split(' ')[1]);
+
     const startTime = Date.now();
     let userId;
 
