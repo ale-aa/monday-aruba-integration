@@ -100,11 +100,22 @@ class EmailController {
       const rawUserId = req.monday?.userId;
       userId = String(rawUserId);
 
+      // ========== FULL PAYLOAD DUMP ==========
+      console.log('[EmailController] ========== FULL PAYLOAD DUMP ==========');
+      console.log('[EmailController] req.body:', JSON.stringify(req.body, null, 2));
+
+      const payload = req.body.payload || req.body;
+      const inputFields = req.body.inputFields || payload.inputFields || {};
+      const inboundFieldValues = req.body.inboundFieldValues || payload.inboundFieldValues || {};
+
+      console.log('[EmailController] payload.inputFields:', JSON.stringify(inputFields, null, 2));
+      console.log('[EmailController] payload.inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
+      console.log('[EmailController] =======================================');
+
       console.log('=============================================');
       console.log('SEND EMAIL - ARUBA SMTP');
       console.log('=============================================');
       console.log('UserId:', userId);
-      console.log('Payload:', JSON.stringify(req.body, null, 2));
 
       // Salva il payload per debugging
       savePayloadLog(req.body, userId);
@@ -115,11 +126,6 @@ class EmailController {
           error: 'User ID mancante'
         });
       }
-
-      // Estrai campi da payload Monday
-      const payload = req.body.payload || req.body;
-      const inputFields = req.body.inputFields || payload.inputFields || {};
-      const inboundFieldValues = req.body.inboundFieldValues || payload.inboundFieldValues || {};
 
       console.log('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
       console.log('[EmailController] inputFields:', JSON.stringify(inputFields, null, 2));
