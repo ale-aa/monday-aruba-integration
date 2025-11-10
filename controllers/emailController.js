@@ -137,25 +137,44 @@ class EmailController {
       console.log('[EmailController] ================================================');
 
       // ESTRAZIONE EMAIL DESTINATARIO
-      // Supporta sia la struttura {{someone}} che {{email}} / {{recipient_email}}
-      let recipient_email =
-        inboundFieldValues.someone ||      // ✓ Campo "someone" da Monday automation
-        inboundFieldValues.recipient_email ||
-        inboundFieldValues.to ||
-        inboundFieldValues.email ||
-        inputFields.someone ||
-        inputFields.email ||
-        inputFields.recipient_email ||
-        req.body.recipient_email ||
-        req.body.someone ||
-        null;
+      // Supporta multiple formati da Monday automation
+      console.log('[EmailController] emailColumnValue:', inboundFieldValues.emailColumnValue);
+
+      let recipient_email;
+
+      // NUOVO: emailColumnValue (può essere string o object)
+      if (inboundFieldValues.emailColumnValue) {
+        if (typeof inboundFieldValues.emailColumnValue === 'string') {
+          recipient_email = inboundFieldValues.emailColumnValue;
+        } else if (typeof inboundFieldValues.emailColumnValue === 'object') {
+          recipient_email = inboundFieldValues.emailColumnValue.email ||
+                           inboundFieldValues.emailColumnValue.text ||
+                           inboundFieldValues.emailColumnValue.value;
+        }
+      }
+
+      // Fallback ai formati precedenti
+      if (!recipient_email) {
+        recipient_email =
+          inboundFieldValues.someone ||      // ✓ Campo "someone" da Monday automation
+          inboundFieldValues.recipient_email ||
+          inboundFieldValues.to ||
+          inboundFieldValues.email ||
+          inboundFieldValues.text ||
+          inputFields.someone ||
+          inputFields.email ||
+          inputFields.recipient_email ||
+          req.body.recipient_email ||
+          req.body.someone ||
+          null;
+      }
 
       // Se è oggetto, estrai il valore
       if (recipient_email && typeof recipient_email === 'object') {
         recipient_email = recipient_email.value || recipient_email.email || recipient_email.text;
       }
 
-      // Fallback: cerca in tutte le chiavi di inboundFieldValues
+      // Fallback finale: cerca in tutte le chiavi di inboundFieldValues
       if (!recipient_email && inboundFieldValues) {
         for (const [key, value] of Object.entries(inboundFieldValues)) {
           if (value && typeof value === 'string' && value.includes('@')) {
@@ -167,6 +186,7 @@ class EmailController {
       }
 
       recipient_email = String(recipient_email || '').trim();
+      console.log('[EmailController] Extracted recipient email:', recipient_email);
 
       // ESTRAZIONE SUBJECT
       let subject =
