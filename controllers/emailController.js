@@ -100,17 +100,38 @@ class EmailController {
       const rawUserId = req.monday?.userId;
       userId = String(rawUserId);
 
-      // ========== FULL PAYLOAD DUMP ==========
-      console.log('[EmailController] ========== FULL PAYLOAD DUMP ==========');
-      console.log('[EmailController] req.body:', JSON.stringify(req.body, null, 2));
+      // ========== PAYLOAD ANALYSIS ==========
+      console.log('[EmailController] ========== PAYLOAD ANALYSIS ==========');
 
+      // Log req.body intero
+      console.log('[EmailController] req.body:', req.body);
+
+      // Estrai payload
       const payload = req.body.payload || req.body;
-      const inputFields = req.body.inputFields || payload.inputFields || {};
-      const inboundFieldValues = req.body.inboundFieldValues || payload.inboundFieldValues || {};
+      console.log('[EmailController] payload:', payload);
 
-      console.log('[EmailController] payload.inputFields:', JSON.stringify(inputFields, null, 2));
-      console.log('[EmailController] payload.inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
+      // Log ogni chiave separatamente
+      console.log('[EmailController] payload keys:', Object.keys(payload));
+
+      if (payload.inputFields) {
+        console.log('[EmailController] inputFields:', payload.inputFields);
+        console.log('[EmailController] inputFields keys:', Object.keys(payload.inputFields));
+      }
+
+      if (payload.inboundFieldValues) {
+        console.log('[EmailController] inboundFieldValues:', payload.inboundFieldValues);
+        console.log('[EmailController] inboundFieldValues keys:', Object.keys(payload.inboundFieldValues));
+
+        // Log ogni campo separatamente
+        for (const [key, value] of Object.entries(payload.inboundFieldValues)) {
+          console.log(`[EmailController] inboundFieldValues.${key}:`, value);
+        }
+      }
+
       console.log('[EmailController] =======================================');
+
+      const inputFields = payload.inputFields || {};
+      const inboundFieldValues = payload.inboundFieldValues || {};
 
       console.log('=============================================');
       console.log('SEND EMAIL - ARUBA SMTP');
@@ -126,10 +147,6 @@ class EmailController {
           error: 'User ID mancante'
         });
       }
-
-      console.log('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
-      console.log('[EmailController] inputFields:', JSON.stringify(inputFields, null, 2));
-      console.log('[EmailController] req.body keys:', Object.keys(req.body));
 
       // DEBUG: Mostra TUTTI i campi inviati da Monday
       console.log('[EmailController] ========== MONDAY PAYLOAD ANALYSIS ==========');
