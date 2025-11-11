@@ -161,12 +161,24 @@ class EmailController {
 
       // ESTRAZIONE EMAIL DESTINATARIO
       // Supporta multiple formati da Monday automation
+      console.log('[EmailController] columnId:', inboundFieldValues.columnId);
       console.log('[EmailController] emailColumnValue:', inboundFieldValues.emailColumnValue);
 
       let recipient_email;
 
-      // NUOVO: emailColumnValue (può essere string o object)
-      if (inboundFieldValues.emailColumnValue) {
+      // NUOVO: columnId (campo colonna Monday con field type: column)
+      if (inboundFieldValues.columnId) {
+        if (typeof inboundFieldValues.columnId === 'string') {
+          recipient_email = inboundFieldValues.columnId;
+        } else if (typeof inboundFieldValues.columnId === 'object') {
+          recipient_email = inboundFieldValues.columnId.email ||
+                           inboundFieldValues.columnId.text ||
+                           inboundFieldValues.columnId.value;
+        }
+      }
+
+      // emailColumnValue (può essere string o object)
+      if (!recipient_email && inboundFieldValues.emailColumnValue) {
         if (typeof inboundFieldValues.emailColumnValue === 'string') {
           recipient_email = inboundFieldValues.emailColumnValue;
         } else if (typeof inboundFieldValues.emailColumnValue === 'object') {
