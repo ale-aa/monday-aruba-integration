@@ -14,6 +14,21 @@ router.post('/fields/email-options', async (req, res) => {
     const jwtPayload = verifyJWT(token, signingSecret);
     const shortLivedToken = jwtPayload.shortLivedToken;
 
+    // Debug JWT e token
+    console.log('[CustomField] JWT payload keys:', Object.keys(jwtPayload));
+    console.log('[CustomField] shortLivedToken length:', shortLivedToken?.length);
+    console.log('[CustomField] Token starts with:', shortLivedToken?.substring(0, 20));
+
+    // Verifica che il token sia nel formato giusto
+    if (!shortLivedToken || shortLivedToken.length < 20) {
+      console.error('[CustomField] Invalid shortLivedToken!');
+      return res.json({
+        options: [
+          { title: 'Token non valido', value: '' }
+        ]
+      });
+    }
+
     // Estrai boardId dalla dependency
     const payload = req.body.payload || req.body;
     const boardId = payload.board_id ||
@@ -22,6 +37,39 @@ router.post('/fields/email-options', async (req, res) => {
 
     console.log('[CustomField] Full payload:', JSON.stringify(payload, null, 2));
     console.log('[CustomField] boardId from dependency:', boardId);
+
+    // Prova query semplice per testare autorizzazione
+    console.log('[CustomField] Testing API with simple query...');
+    const simpleQuery = `
+      query {
+        me {
+          id
+          name
+          email
+        }
+      }
+    `;
+
+    const testResponse = await fetch('https://api.monday.com/v2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': shortLivedToken
+      },
+      body: JSON.stringify({ query: simpleQuery })
+    });
+
+    const testData = await testResponse.json();
+    console.log('[CustomField] Simple query response:', JSON.stringify(testData, null, 2));
+
+    if (testData.errors) {
+      console.error('[CustomField] API test failed:', testData.errors);
+      return res.json({
+        options: [
+          { title: 'Errore autorizzazione API: ' + testData.errors[0]?.message, value: '' }
+        ]
+      });
+    }
 
     // Se abbiamo boardId e shortLivedToken, leggi le email dalla board
     if (boardId && shortLivedToken) {
