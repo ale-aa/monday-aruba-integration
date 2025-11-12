@@ -3,21 +3,73 @@ const router = express.Router();
 const { verifyJWT } = require('../utils/jwtUtils');
 
 /**
- * Custom Field Endpoint: /fields/email-options
+ * Field Definitions Endpoint: /fields/definitions
  *
- * Monday.com calls this endpoint when loading options for a dynamic dropdown field.
+ * Monday.com calls this endpoint to get the structure/definition of custom fields.
+ * This defines WHAT fields are available and their configuration.
  *
- * Expected behavior:
- * 1. Receive JWT from Monday.com
- * 2. Return array of email options extracted from board items
+ * Response format: { kind: 'field_definitions', fields: [...] }
+ */
+router.post('/fields/definitions', async (req, res) => {
+  try {
+    console.log('📋 FIELD DEFINITIONS called');
+    console.log('[FieldDefs] Request body:', JSON.stringify(req.body, null, 2));
+
+    // Verifica JWT
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      console.error('[FieldDefs] No authorization header');
+      return res.status(401).json({
+        message: 'Authorization required',
+        kind: 'error'
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const signingSecret = process.env.SIGNING_SECRET || process.env.MONDAY_SIGNING_SECRET;
+
+    console.log('[FieldDefs] Verifying JWT...');
+    const jwtPayload = verifyJWT(token, signingSecret);
+    console.log('[FieldDefs] JWT verified successfully');
+
+    // Restituisci la DEFINIZIONE dei campi
+    // Questo descrive la STRUTTURA dei campi, non i valori
+    const fieldDefinitions = {
+      kind: 'field_definitions',
+      fields: [
+        {
+          id: 'recipient_email',
+          title: 'Email Recipient',
+          description: 'Select recipient email from board items',
+          type: 'dropdown',
+          required: true,
+          remote_options_url: 'https://ec7ca-service-32281405-f2dd3966.us.monday.app/fields/email-options',
+          dependencies: ['board_id']
+        }
+      ]
+    };
+
+    console.log('[FieldDefs] Returning field definitions:', JSON.stringify(fieldDefinitions, null, 2));
+    return res.status(200).json(fieldDefinitions);
+
+  } catch (error) {
+    console.error('[FieldDefs] Error:', error.message);
+    console.error('[FieldDefs] Stack:', error.stack);
+    return res.status(400).json({
+      message: 'Cannot load field definitions',
+      kind: 'error',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Remote Options Endpoint: /fields/email-options
  *
- * Important: Monday.com custom field endpoints operate in a limited context.
- * They provide a JWT token but may NOT include shortLivedToken for GraphQL API access.
+ * Monday.com calls this endpoint to load OPTIONS for the dropdown field.
+ * This provides the ACTUAL VALUES to display in the dropdown.
  *
- * For this to work, we need to either:
- * A) Use a pre-stored API token (stored in env)
- * B) Cache the board data separately
- * C) Accept that we can't make API calls in this context
+ * Response format: { kind: 'options', options: [{value, title}, ...] }
  */
 router.post('/fields/email-options', async (req, res) => {
   try {
@@ -32,8 +84,9 @@ router.post('/fields/email-options', async (req, res) => {
     if (!token) {
       console.error('[CustomField] No token in Authorization header');
       return res.json({
+        kind: 'options',
         options: [
-          { title: 'Token non fornito', value: '' }
+          { value: '', title: 'Token non fornito' }
         ]
       });
     }
@@ -62,8 +115,9 @@ router.post('/fields/email-options', async (req, res) => {
       if (!apiToken) {
         console.error('[CustomField] MONDAY_API_TOKEN not configured in environment');
         return res.json({
+          kind: 'options',
           options: [
-            { title: 'Configurazione mancante: MONDAY_API_TOKEN', value: '' }
+            { value: '', title: 'Configurazione mancante: MONDAY_API_TOKEN' }
           ]
         });
       }
@@ -87,8 +141,9 @@ router.post('/fields/email-options', async (req, res) => {
     if (!apiTokenToUse) {
       console.error('[CustomField] No valid API token available');
       return res.json({
+        kind: 'options',
         options: [
-          { title: 'Errore: Token API non disponibile', value: '' }
+          { value: '', title: 'Errore: Token API non disponibile' }
         ]
       });
     }
@@ -97,8 +152,9 @@ router.post('/fields/email-options', async (req, res) => {
     if (!boardId) {
       console.warn('[CustomField] No boardId found in payload');
       return res.json({
+        kind: 'options',
         options: [
-          { title: 'Board ID mancante - configura la dependency', value: '' }
+          { value: '', title: 'Board ID mancante - configura la dependency' }
         ]
       });
     }
@@ -136,15 +192,17 @@ router.post('/fields/email-options', async (req, res) => {
       // o non ha i permessi giusti
       if (errorMsg.includes('UNAUTHORIZED') || errorMsg.includes('Unauthorized')) {
         return res.json({
+          kind: 'options',
           options: [
-            { title: `Errore di autorizzazione: ${errorMsg}`, value: '' }
+            { value: '', title: `Errore di autorizzazione: ${errorMsg}` }
           ]
         });
       }
 
       return res.json({
+        kind: 'options',
         options: [
-          { title: `Errore API: ${errorMsg}`, value: '' }
+          { value: '', title: `Errore API: ${errorMsg}` }
         ]
       });
     }
@@ -195,8 +253,9 @@ router.post('/fields/email-options', async (req, res) => {
       console.error('[CustomField] API returned errors:', JSON.stringify(data.errors, null, 2));
       const firstError = data.errors[0]?.message || 'Unknown error';
       return res.json({
+        kind: 'options',
         options: [
-          { title: `Errore API Monday: ${firstError}`, value: '' }
+          { value: '', title: `Errore API Monday: ${firstError}` }
         ]
       });
     }
@@ -206,8 +265,9 @@ router.post('/fields/email-options', async (req, res) => {
     if (!board) {
       console.warn('[CustomField] Board not found');
       return res.json({
+        kind: 'options',
         options: [
-          { title: 'Board non trovata', value: '' }
+          { value: '', title: 'Board non trovata' }
         ]
       });
     }
@@ -222,8 +282,9 @@ router.post('/fields/email-options', async (req, res) => {
     if (emailColumns.length === 0) {
       console.warn('[CustomField] No email columns on board');
       return res.json({
+        kind: 'options',
         options: [
-          { title: 'Nessuna colonna email sulla board', value: '' }
+          { value: '', title: 'Nessuna colonna email sulla board' }
         ]
       });
     }
@@ -260,8 +321,8 @@ router.post('/fields/email-options', async (req, res) => {
       // Valida che sia un'email
       if (email && typeof email === 'string' && email.includes('@')) {
         options.push({
-          title: `${item.name} <${email}>`,
-          value: email
+          value: email,
+          title: `${item.name} <${email}>`
         });
         console.log('[CustomField] Added option:', item.name, '<' + email + '>');
       }
@@ -271,22 +332,27 @@ router.post('/fields/email-options', async (req, res) => {
 
     if (options.length === 0) {
       return res.json({
+        kind: 'options',
         options: [
-          { title: 'Nessuna email trovata negli item della board', value: '' }
+          { value: '', title: 'Nessuna email trovata negli item della board' }
         ]
       });
     }
 
-    // Ritorna le opzioni
+    // Ritorna le opzioni nel formato corretto per Monday.com
     console.log('[CustomField] Returning', options.length, 'email options');
-    return res.json({ options });
+    return res.json({
+      kind: 'options',
+      options: options
+    });
 
   } catch (error) {
     console.error('[CustomField] Unhandled error:', error.message);
     console.error('[CustomField] Stack:', error.stack);
     return res.json({
+      kind: 'options',
       options: [
-        { title: `Errore: ${error.message}`, value: '' }
+        { value: '', title: `Errore: ${error.message}` }
       ]
     });
   }

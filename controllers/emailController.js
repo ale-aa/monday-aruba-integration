@@ -152,16 +152,17 @@ class EmailController {
         throw new Error('userId non trovato nel JWT');
       }
 
-      // ===== ESTRAI EMAIL DAL DYNAMIC FIELD =====
-      const recipient_email = inboundFieldValues?.dynamic_email;
+      // ===== ESTRAI EMAIL DAL DYNAMIC FIELD CUSTOM =====
+      // Il campo custom field si chiama 'recipient_email' (dall'endpoint /fields/definitions)
+      const recipient_email = inboundFieldValues?.recipient_email || inboundFieldValues?.dynamic_email;
 
-      console.log('[EmailController] dynamic_email:', recipient_email);
+      console.log('[EmailController] recipient_email (from custom field):', recipient_email);
 
       if (!recipient_email || !recipient_email.includes('@')) {
-        throw new Error('Email destinatario non valida dal dynamic field: ' + recipient_email);
+        throw new Error('Email destinatario non valida dal custom field: ' + recipient_email);
       }
 
-      console.log('[EmailController] ✅ Recipient email from dynamic field:', recipient_email);
+      console.log('[EmailController] ✅ Recipient email from custom field:', recipient_email);
 
       // ===== ESTRAI SUBJECT E BODY =====
       const emailObj = inboundFieldValues?.email || {};
