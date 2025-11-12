@@ -14,16 +14,17 @@ router.post('/fields/email-options', async (req, res) => {
     const jwtPayload = verifyJWT(token, signingSecret);
     const shortLivedToken = jwtPayload.shortLivedToken;
 
-    // Estrai context (Monday passa info sul contesto)
-    const { context, boardId, itemId, columnId } = req.body;
+    // Estrai boardId dalla dependency
+    const payload = req.body.payload || req.body;
+    const boardId = payload.board_id ||
+                    payload.boardId ||
+                    payload.dependencies?.board_id;
 
-    console.log('[CustomField] Context:', context);
-    console.log('[CustomField] boardId:', boardId);
-    console.log('[CustomField] itemId:', itemId);
-    console.log('[CustomField] columnId:', columnId);
+    console.log('[CustomField] Full payload:', JSON.stringify(payload, null, 2));
+    console.log('[CustomField] boardId from dependency:', boardId);
 
-    // Se abbiamo itemId, leggi le email dalla colonna
-    if (itemId && shortLivedToken) {
+    // Se abbiamo boardId e shortLivedToken, leggi le email dalla board
+    if (boardId && shortLivedToken) {
 
       // OPZIONE A: Leggi tutte le email dalla board
       const query = `
@@ -94,10 +95,11 @@ router.post('/fields/email-options', async (req, res) => {
       });
     }
 
-    // Fallback: nessun context disponibile
+    // Fallback: nessun boardId disponibile
+    console.warn('[CustomField] No boardId found!');
     return res.json({
       options: [
-        { title: 'Seleziona un item prima', value: '' }
+        { title: 'Board ID mancante - configura dependency', value: '' }
       ]
     });
 

@@ -152,121 +152,16 @@ class EmailController {
         throw new Error('userId non trovato nel JWT');
       }
 
-      // ===== ESTRAI ITEM ID =====
-      const itemData = inboundFieldValues?.itemId;
-      let itemId;
+      // ===== ESTRAI EMAIL DAL DYNAMIC FIELD =====
+      const recipient_email = inboundFieldValues?.dynamic_email;
 
-      if (typeof itemData === 'object' && itemData?.id) {
-        itemId = itemData.id;
-      } else if (typeof itemData === 'object' && itemData?.value?.id) {
-        itemId = itemData.value.id;
-      } else if (typeof itemData === 'number' || typeof itemData === 'string') {
-        itemId = itemData;
-      }
-
-      console.log('[EmailController] itemId:', itemId);
-      console.log('[EmailController] Item object:', itemData);
-
-      if (!itemId) {
-        throw new Error('itemId mancante! Aggiungi un campo "itemId" con Type: Item e Source: Trigger Output');
-      }
-
-      // ===== ESTRAI EMAIL COLUMN ID =====
-      const emailColumnData = inboundFieldValues?.columnId;
-      let emailColumnId;
-
-      if (typeof emailColumnData === 'object' && emailColumnData?.id) {
-        emailColumnId = emailColumnData.id;
-      } else if (typeof emailColumnData === 'object' && emailColumnData?.value?.id) {
-        emailColumnId = emailColumnData.value.id;
-      } else if (typeof emailColumnData === 'string') {
-        emailColumnId = emailColumnData;
-      }
-
-      console.log('[EmailController] emailColumnId:', emailColumnId);
-      console.log('[EmailController] Email column object:', emailColumnData);
-
-      if (!emailColumnId) {
-        throw new Error('columnId mancante! Aggiungi un campo "columnId" con Type: Column e Restrict to: Email');
-      }
-
-      // ===== CHIAMA API MONDAY PER LEGGERE EMAIL =====
-      console.log('[EmailController] ========== CALLING MONDAY API ==========');
-      console.log('[EmailController] itemId:', itemId);
-      console.log('[EmailController] columnId:', emailColumnId);
-
-      const query = `
-        query ($itemId: [Int!]!, $colId: [String!]!) {
-          items (ids: $itemId) {
-            id
-            name
-            column_values (ids: $colId) {
-              id
-              text
-              value
-            }
-          }
-        }
-      `;
-
-      const apiResponse = await fetch('https://api.monday.com/v2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': shortLivedToken
-        },
-        body: JSON.stringify({
-          query,
-          variables: {
-            itemId: [Number(itemId)],
-            colId: [String(emailColumnId)]
-          }
-        })
-      });
-
-      const apiData = await apiResponse.json();
-
-      console.log('[EmailController] API Response status:', apiResponse.status);
-      if (apiData.errors) {
-        console.error('[EmailController] API Errors:', apiData.errors);
-        throw new Error('Monday API error: ' + JSON.stringify(apiData.errors));
-      }
-
-      // Estrai l'item e il valore della colonna
-      const item = apiData.data?.items?.[0];
-      if (!item) {
-        throw new Error('Item non trovato con ID: ' + itemId);
-      }
-
-      console.log('[EmailController] ✓ Item found:', item.name);
-
-      const columnValue = item.column_values?.[0];
-      if (!columnValue) {
-        throw new Error('Colonna email non trovata nell\'item');
-      }
-
-      console.log('[EmailController] Column value text:', columnValue.text);
-      console.log('[EmailController] Column value value:', columnValue.value?.substring?.(0, 100));
-
-      // Estrai email dal column value
-      let recipient_email = columnValue.text || columnValue.value;
-
-      // Se è JSON, prova a parsare
-      if (recipient_email && recipient_email.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(recipient_email);
-          recipient_email = parsed.email || parsed.text || recipient_email;
-        } catch (e) {
-          console.error('[EmailController] Non-JSON column value, using as-is');
-        }
-      }
-
-      recipient_email = String(recipient_email || '').trim();
-      console.log('[EmailController] ✅ Recipient email from API:', recipient_email);
+      console.log('[EmailController] dynamic_email:', recipient_email);
 
       if (!recipient_email || !recipient_email.includes('@')) {
-        throw new Error('Email non valida nella colonna: ' + recipient_email);
+        throw new Error('Email destinatario non valida dal dynamic field: ' + recipient_email);
       }
+
+      console.log('[EmailController] ✅ Recipient email from dynamic field:', recipient_email);
 
       // ===== ESTRAI SUBJECT E BODY =====
       const emailObj = inboundFieldValues?.email || {};
