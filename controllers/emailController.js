@@ -79,198 +79,216 @@ class EmailController {
 
   /**
    * Invia un'email usando SMTP di Aruba
+   * Legge l'email destinatario via API di Monday usando shortLivedToken
+   *
+   * Input Fields (Recipe Sentence):
+   * - item: Item (Trigger Output) - Required
+   * - email_column_id: Column (Email) - Required
+   * - email: Email (Subject/Body) - Required
+   *
    * POST /monday/sendEmail
    */
   static async sendEmail(req, res) {
-    console.log('🔥🔥🔥 SENDEMAIL CALLED ON MONDAY CODE! 🔥🔥🔥');
-    console.log('🔥 URL:', req.url);
-    console.log('🔥 Method:', req.method);
-    console.log('🔥 Headers:', JSON.stringify(req.headers, null, 2).substring(0, 500));
-    console.log('🔥🔥🔥 THIS IS THE MONDAY CODE SERVER 🔥🔥🔥');
-
-    // JWT Logging for debugging
-    console.log('🔑 AUTHORIZATION HEADER:', req.headers.authorization);
-    console.log('🔑 FULL JWT TOKEN:', req.headers.authorization?.split(' ')[1]);
+    console.log('[EmailController] ========== SEND EMAIL START ==========');
 
     const startTime = Date.now();
     let userId;
 
     try {
-      // Estrai userId dal JWT
-      const rawUserId = req.monday?.userId;
-      userId = String(rawUserId);
-
-      // ========== PAYLOAD ANALYSIS ==========
-      console.log('[EmailController] ========== PAYLOAD ANALYSIS ==========');
-
-      // Log req.body intero
-      console.log('[EmailController] req.body:', req.body);
-
-      // Estrai payload
-      const payload = req.body.payload || req.body;
-      console.log('[EmailController] payload:', payload);
-
-      // Log ogni chiave separatamente
-      console.log('[EmailController] payload keys:', Object.keys(payload));
-
-      if (payload.inputFields) {
-        console.log('[EmailController] inputFields:', payload.inputFields);
-        console.log('[EmailController] inputFields keys:', Object.keys(payload.inputFields));
+      // ===== ESTRAI E VERIFICA JWT =====
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        throw new Error('Authorization header mancante');
       }
 
-      if (payload.inboundFieldValues) {
-        console.log('[EmailController] inboundFieldValues:', payload.inboundFieldValues);
-        console.log('[EmailController] inboundFieldValues keys:', Object.keys(payload.inboundFieldValues));
+      const token = authHeader.replace('Bearer ', '');
+      console.log('[EmailController] JWT token extracted');
 
-        // Log ogni campo separatamente
-        for (const [key, value] of Object.entries(payload.inboundFieldValues)) {
-          console.log(`[EmailController] inboundFieldValues.${key}:`, value);
+      // Estrai shortLivedToken dal JWT via req.monday
+      const shortLivedToken = req.monday?.shortLivedToken;
+      if (!shortLivedToken) {
+        throw new Error('shortLivedToken mancante nel JWT. Verifica che il token sia valido.');
+      }
+
+      console.log('[EmailController] ✓ shortLivedToken present');
+
+      // Estrai payload e userId
+      const payload = req.body.payload || req.body;
+      const { inboundFieldValues, inputFields } = payload;
+      userId = String(req.monday?.userId || payload.userId || 'unknown');
+
+      console.log('[EmailController] userId:', userId);
+      console.log('[EmailController] inboundFieldValues keys:', Object.keys(inboundFieldValues || {}));
+      console.log('[EmailController] inputFields keys:', Object.keys(inputFields || {}));
+
+      // Salva payload per debugging
+      savePayloadLog(payload, userId);
+
+      if (!userId || userId === 'unknown') {
+        throw new Error('userId non trovato nel JWT');
+      }
+
+      // ===== ESTRAI ITEM ID =====
+      const itemData = inboundFieldValues?.item;
+      let itemId;
+
+      if (typeof itemData === 'object' && itemData?.id) {
+        itemId = itemData.id;
+      } else if (typeof itemData === 'object' && itemData?.value?.id) {
+        itemId = itemData.value.id;
+      } else if (typeof itemData === 'number' || typeof itemData === 'string') {
+        itemId = itemData;
+      }
+
+      console.log('[EmailController] itemId:', itemId);
+      console.log('[EmailController] Item object:', itemData);
+
+      if (!itemId) {
+        throw new Error('itemId mancante! Aggiungi un campo "item" con Type: Item e Source: Trigger Output');
+      }
+
+      // ===== ESTRAI EMAIL COLUMN ID =====
+      const emailColumnData = inboundFieldValues?.email_column_id;
+      let emailColumnId;
+
+      if (typeof emailColumnData === 'object' && emailColumnData?.id) {
+        emailColumnId = emailColumnData.id;
+      } else if (typeof emailColumnData === 'object' && emailColumnData?.value?.id) {
+        emailColumnId = emailColumnData.value.id;
+      } else if (typeof emailColumnData === 'string') {
+        emailColumnId = emailColumnData;
+      }
+
+      console.log('[EmailController] emailColumnId:', emailColumnId);
+      console.log('[EmailController] Email column object:', emailColumnData);
+
+      if (!emailColumnId) {
+        throw new Error('email_column_id mancante! Aggiungi un campo "email_column_id" con Type: Column e Restrict to: Email');
+      }
+
+      // ===== CHIAMA API MONDAY PER LEGGERE EMAIL =====
+      console.log('[EmailController] ========== CALLING MONDAY API ==========');
+      console.log('[EmailController] itemId:', itemId);
+      console.log('[EmailController] columnId:', emailColumnId);
+
+      const query = `
+        query ($itemId: [Int!]!, $colId: [String!]!) {
+          items (ids: $itemId) {
+            id
+            name
+            column_values (ids: $colId) {
+              id
+              text
+              value
+            }
+          }
+        }
+      `;
+
+      const apiResponse = await fetch('https://api.monday.com/v2', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': shortLivedToken
+        },
+        body: JSON.stringify({
+          query,
+          variables: {
+            itemId: [Number(itemId)],
+            colId: [String(emailColumnId)]
+          }
+        })
+      });
+
+      const apiData = await apiResponse.json();
+
+      console.log('[EmailController] API Response status:', apiResponse.status);
+      if (apiData.errors) {
+        console.error('[EmailController] API Errors:', apiData.errors);
+        throw new Error('Monday API error: ' + JSON.stringify(apiData.errors));
+      }
+
+      // Estrai l'item e il valore della colonna
+      const item = apiData.data?.items?.[0];
+      if (!item) {
+        throw new Error('Item non trovato con ID: ' + itemId);
+      }
+
+      console.log('[EmailController] ✓ Item found:', item.name);
+
+      const columnValue = item.column_values?.[0];
+      if (!columnValue) {
+        throw new Error('Colonna email non trovata nell\'item');
+      }
+
+      console.log('[EmailController] Column value text:', columnValue.text);
+      console.log('[EmailController] Column value value:', columnValue.value?.substring?.(0, 100));
+
+      // Estrai email dal column value
+      let recipient_email = columnValue.text || columnValue.value;
+
+      // Se è JSON, prova a parsare
+      if (recipient_email && recipient_email.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(recipient_email);
+          recipient_email = parsed.email || parsed.text || recipient_email;
+        } catch (e) {
+          console.error('[EmailController] Non-JSON column value, using as-is');
         }
       }
 
-      console.log('[EmailController] =======================================');
-
-      const inputFields = payload.inputFields || {};
-      const inboundFieldValues = payload.inboundFieldValues || {};
-
-      console.log('=============================================');
-      console.log('SEND EMAIL - ARUBA SMTP');
-      console.log('=============================================');
-      console.log('UserId:', userId);
-
-      // Salva il payload per debugging
-      savePayloadLog(req.body, userId);
-
-      if (!userId || userId === 'undefined') {
-        return res.status(400).json({
-          success: false,
-          error: 'User ID mancante'
-        });
-      }
-
-      // DEBUG: Mostra TUTTI i campi inviati da Monday
-      console.log('[EmailController] ========== MONDAY PAYLOAD ANALYSIS ==========');
-      console.log('[EmailController] Payload keys:', Object.keys(payload));
-      if (inboundFieldValues) {
-        console.log('[EmailController] inboundFieldValues keys:', Object.keys(inboundFieldValues));
-        Object.entries(inboundFieldValues).forEach(([key, value]) => {
-          console.log(`[EmailController]   - ${key}:`, typeof value === 'object' ? JSON.stringify(value) : value);
-        });
-      }
-      console.log('[EmailController] ================================================');
-
-      // ESTRAZIONE EMAIL DESTINATARIO
-      // Estrae dal trigger output (emailColumnValue)
-      console.log('[EmailController] Trigger Output - emailColumnValue:', inboundFieldValues.emailColumnValue);
-
-      let recipient_email =
-        inboundFieldValues.emailColumnValue ||
-        payload.outputFields?.emailColumnValue ||
-        // Fallback: cerca email in inboundFieldValues
-        Object.values(inboundFieldValues || {}).find(v =>
-          typeof v === 'string' && v.includes('@')
-        );
-
-      // Se è oggetto, estrai il valore
-      if (recipient_email && typeof recipient_email === 'object') {
-        recipient_email = recipient_email.value || recipient_email.email || recipient_email.text;
-      }
-
       recipient_email = String(recipient_email || '').trim();
-      console.log('[EmailController] Extracted recipient email (from trigger output):', recipient_email);
+      console.log('[EmailController] ✅ Recipient email from API:', recipient_email);
 
-      // ESTRAZIONE SUBJECT
-      // Estrae dagli input fields (ACTION INPUTS)
-      let subject = inputFields?.subject || payload.inputFields?.subject || 'Email da Monday.com';
+      if (!recipient_email || !recipient_email.includes('@')) {
+        throw new Error('Email non valida nella colonna: ' + recipient_email);
+      }
+
+      // ===== ESTRAI SUBJECT E BODY =====
+      const emailObj = inboundFieldValues?.email || {};
+      let subject = emailObj.subject || inputFields?.subject || 'Email da Monday.com';
+      let body = emailObj.body || inputFields?.body || '';
 
       if (subject && typeof subject === 'object') {
-        subject = subject.value || subject.text || subject.message;
+        subject = subject.value || subject.text || 'Email da Monday.com';
       }
-      subject = String(subject).trim();
-      console.log('[EmailController] Extracted subject (from input fields):', subject);
-
-      // ESTRAZIONE BODY
-      // Estrae dagli input fields (ACTION INPUTS)
-      let body = inputFields?.body || payload.inputFields?.body || '';
-
       if (body && typeof body === 'object') {
-        body = body.value || body.text || body.message;
+        body = body.value || body.text || '';
       }
+
+      subject = String(subject).trim();
       body = String(body).trim();
-      console.log('[EmailController] Extracted body (from input fields):', body.substring(0, 100));
 
-      console.log('[EmailController] Extracted fields:');
-      console.log('  - recipient:', recipient_email);
-      console.log('  - subject:', subject);
-      console.log('  - body:', body.substring(0, 100));
+      console.log('[EmailController] Subject:', subject);
+      console.log('[EmailController] Body length:', body.length);
 
-      // Validazione
-      if (!recipient_email) {
-        console.error('[EmailController] recipient_email mancante!');
-        return res.status(400).json({
-          success: false,
-          error: 'recipient_email è obbligatorio',
-          debug: {
-            inboundFieldValues,
-            inputFields
-          }
-        });
-      }
-
-      try {
-        this.validateEmailParams({ recipient_email, subject, body });
-      } catch (validationError) {
-        console.warn(`[EmailController] Validazione fallita: ${validationError.message}`);
-        return res.status(400).json({
-          success: false,
-          error: validationError.message
-        });
-      }
-
-      // Recupera credenziali Aruba (OBBLIGATORIE per SMTP)
-      console.log('[EmailController] ========================================');
-      console.log('[EmailController] Retrieving Aruba credentials for userId:', userId);
-      console.log('[EmailController] userId type:', typeof userId, 'value:', userId);
-      console.log('[EmailController] ========================================');
+      // ===== RECUPERA CREDENZIALI ARUBA =====
+      console.log('[EmailController] ========== RETRIEVING CREDENTIALS ==========');
+      console.log('[EmailController] userId:', userId);
 
       const credentials = await IntegrationCredentials.findByUserIdWithPassword(userId);
 
-      console.log('[EmailController] Credentials query result:', !!credentials);
-      if (credentials) {
-        console.log('[EmailController] Credentials keys:', Object.keys(credentials));
-      }
-
       if (!credentials) {
-        console.error('[EmailController] ❌ No credentials found for user:', userId);
-        console.error('[EmailController] This means the user has NOT logged in with Aruba credentials yet');
-        return res.status(400).json({
-          success: false,
-          error: 'Credenziali Aruba non configurate. Accedi con le tue credenziali Aruba.',
-          code: 'NO_CREDENTIALS'
-        });
+        throw new Error('Credenziali Aruba non trovate. Accedi con le tue credenziali.');
       }
 
-      console.log('[EmailController] ✓ Credentials found:');
-      console.log('  - Aruba Email:', credentials.aruba_email);
-      console.log('  - SMTP Host:', credentials.smtp_host);
-      console.log('  - SMTP Port:', credentials.smtp_port);
+      console.log('[EmailController] ✓ Credentials found');
+      console.log('[EmailController] Aruba Email:', credentials.aruba_email);
 
-      // ========== INVIO VIA SMTP ARUBA ==========
-      console.log('[EmailController] ========================================');
-      console.log('[EmailController] SENDING VIA ARUBA SMTP');
-      console.log('[EmailController] From (Aruba):', credentials.aruba_email);
+      // ===== INVIA EMAIL VIA ARUBA SMTP =====
+      console.log('[EmailController] ========== SENDING VIA ARUBA SMTP ==========');
+      console.log('[EmailController] From:', credentials.aruba_email);
       console.log('[EmailController] To:', recipient_email);
       console.log('[EmailController] Subject:', subject);
-      console.log('[EmailController] ========================================');
 
       try {
         const result = await emailService.sendEmail({
           to: recipient_email,
           subject: subject,
           body: body,
-          from: credentials.aruba_email, // Email Aruba come mittente
-          arubaEmail: credentials.aruba_email, // Username SMTP
-          arubaPassword: credentials.aruba_password, // Password SMTP
+          from: credentials.aruba_email,
+          arubaEmail: credentials.aruba_email,
+          arubaPassword: credentials.aruba_password,
           smtpHost: credentials.smtp_host,
           smtpPort: credentials.smtp_port
         });
@@ -278,47 +296,34 @@ class EmailController {
         const duration = Date.now() - startTime;
         console.log('[EmailController] ✅ Email sent successfully!');
         console.log('[EmailController] Message ID:', result.messageId);
-        console.log('[EmailController] Response:', result.response);
         console.log('[EmailController] Duration:', duration, 'ms');
 
         logAuthSuccess({
           userId,
           method: 'sendEmail',
-          source: 'Aruba SMTP'
+          source: 'Aruba SMTP via Monday API'
         });
 
         return res.status(200).json({
           success: true,
-          message: 'Email inviata con successo tramite Aruba SMTP',
+          message: 'Email inviata con successo',
           messageId: result.messageId,
           provider: 'aruba_smtp',
           from: credentials.aruba_email,
+          to: recipient_email,
           timestamp: new Date().toISOString(),
           duration_ms: duration
         });
 
       } catch (emailError) {
         console.error('[EmailController] ❌ SMTP error:', emailError.message);
-
-        logAuthFailure({
-          reason: 'Email send failed: ' + emailError.message,
-          method: 'sendEmail',
-          statusCode: 500,
-          userId
-        });
-
-        return res.status(500).json({
-          success: false,
-          error: 'Impossibile inviare email tramite Aruba SMTP',
-          message: emailError.message,
-          provider: 'aruba_smtp',
-          code: emailError.code || 'SMTP_ERROR'
-        });
+        throw emailError;
       }
 
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.error(`[EmailController] Errore: ${error.message}`, error);
+      console.error('[EmailController] ❌ ERROR:', error.message);
+      console.error('[EmailController] Stack:', error.stack);
 
       logAuthFailure({
         reason: error.message,
@@ -329,8 +334,8 @@ class EmailController {
 
       return res.status(500).json({
         success: false,
-        error: 'Errore interno',
-        message: error.message,
+        error: error.message,
+        code: error.code || 'ERROR',
         duration_ms: duration
       });
     }
