@@ -160,99 +160,44 @@ class EmailController {
       console.log('[EmailController] ================================================');
 
       // ESTRAZIONE EMAIL DESTINATARIO
-      // Supporta multiple formati da Monday automation
-      console.log('[EmailController] columnId:', inboundFieldValues.columnId);
-      console.log('[EmailController] emailColumnValue:', inboundFieldValues.emailColumnValue);
+      // Estrae dal trigger output (emailColumnValue)
+      console.log('[EmailController] Trigger Output - emailColumnValue:', inboundFieldValues.emailColumnValue);
 
-      let recipient_email;
-
-      // NUOVO: columnId (campo colonna Monday con field type: column)
-      if (inboundFieldValues.columnId) {
-        if (typeof inboundFieldValues.columnId === 'string') {
-          recipient_email = inboundFieldValues.columnId;
-        } else if (typeof inboundFieldValues.columnId === 'object') {
-          recipient_email = inboundFieldValues.columnId.email ||
-                           inboundFieldValues.columnId.text ||
-                           inboundFieldValues.columnId.value;
-        }
-      }
-
-      // emailColumnValue (può essere string o object)
-      if (!recipient_email && inboundFieldValues.emailColumnValue) {
-        if (typeof inboundFieldValues.emailColumnValue === 'string') {
-          recipient_email = inboundFieldValues.emailColumnValue;
-        } else if (typeof inboundFieldValues.emailColumnValue === 'object') {
-          recipient_email = inboundFieldValues.emailColumnValue.email ||
-                           inboundFieldValues.emailColumnValue.text ||
-                           inboundFieldValues.emailColumnValue.value;
-        }
-      }
-
-      // Fallback ai formati precedenti
-      if (!recipient_email) {
-        recipient_email =
-          inboundFieldValues.someone ||      // ✓ Campo "someone" da Monday automation
-          inboundFieldValues.recipient_email ||
-          inboundFieldValues.to ||
-          inboundFieldValues.email ||
-          inboundFieldValues.text ||
-          inputFields.someone ||
-          inputFields.email ||
-          inputFields.recipient_email ||
-          req.body.recipient_email ||
-          req.body.someone ||
-          null;
-      }
+      let recipient_email =
+        inboundFieldValues.emailColumnValue ||
+        payload.outputFields?.emailColumnValue ||
+        // Fallback: cerca email in inboundFieldValues
+        Object.values(inboundFieldValues || {}).find(v =>
+          typeof v === 'string' && v.includes('@')
+        );
 
       // Se è oggetto, estrai il valore
       if (recipient_email && typeof recipient_email === 'object') {
         recipient_email = recipient_email.value || recipient_email.email || recipient_email.text;
       }
 
-      // Fallback finale: cerca in tutte le chiavi di inboundFieldValues
-      if (!recipient_email && inboundFieldValues) {
-        for (const [key, value] of Object.entries(inboundFieldValues)) {
-          if (value && typeof value === 'string' && value.includes('@')) {
-            recipient_email = value;
-            console.log(`[EmailController] Found email in key "${key}":`, recipient_email);
-            break;
-          }
-        }
-      }
-
       recipient_email = String(recipient_email || '').trim();
-      console.log('[EmailController] Extracted recipient email:', recipient_email);
+      console.log('[EmailController] Extracted recipient email (from trigger output):', recipient_email);
 
       // ESTRAZIONE SUBJECT
-      let subject =
-        inboundFieldValues.subject ||
-        (inboundFieldValues.email && inboundFieldValues.email.subject) ||
-        inputFields.subject ||
-        req.body.subject ||
-        'Email da Monday.com';
+      // Estrae dagli input fields (ACTION INPUTS)
+      let subject = inputFields?.subject || payload.inputFields?.subject || 'Email da Monday.com';
 
       if (subject && typeof subject === 'object') {
         subject = subject.value || subject.text || subject.message;
       }
       subject = String(subject).trim();
+      console.log('[EmailController] Extracted subject (from input fields):', subject);
 
       // ESTRAZIONE BODY
-      let body =
-        inboundFieldValues.body ||
-        (inboundFieldValues.email && inboundFieldValues.email.body) ||
-        inboundFieldValues.message ||
-        (inboundFieldValues.email && inboundFieldValues.email.message) ||
-        inboundFieldValues.text ||
-        (inboundFieldValues.email && inboundFieldValues.email.text) ||
-        inputFields.body ||
-        inputFields.message ||
-        req.body.body ||
-        'Messaggio da Monday.com';
+      // Estrae dagli input fields (ACTION INPUTS)
+      let body = inputFields?.body || payload.inputFields?.body || '';
 
       if (body && typeof body === 'object') {
         body = body.value || body.text || body.message;
       }
       body = String(body).trim();
+      console.log('[EmailController] Extracted body (from input fields):', body.substring(0, 100));
 
       console.log('[EmailController] Extracted fields:');
       console.log('  - recipient:', recipient_email);
