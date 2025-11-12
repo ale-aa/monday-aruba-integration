@@ -89,7 +89,32 @@ class EmailController {
    * POST /monday/sendEmail
    */
   static async sendEmail(req, res) {
-    console.log('[EmailController] ========== SEND EMAIL START ==========');
+    console.log('🔥🔥🔥 SENDEMAIL CALLED 🔥🔥🔥');
+    console.log('[DEBUG] ========== FULL PAYLOAD DUMP ==========');
+    console.log('[DEBUG] req.body:', JSON.stringify(req.body, null, 2));
+
+    const payload = req.body.payload || req.body;
+    console.log('[DEBUG] payload keys:', Object.keys(payload));
+
+    if (payload.inboundFieldValues) {
+      console.log('[DEBUG] inboundFieldValues keys:', Object.keys(payload.inboundFieldValues));
+      console.log('[DEBUG] inboundFieldValues FULL:', JSON.stringify(payload.inboundFieldValues, null, 2));
+
+      // Log ogni campo separatamente
+      for (const [key, value] of Object.entries(payload.inboundFieldValues)) {
+        console.log(`[DEBUG] Field "${key}":`, typeof value === 'object' ? JSON.stringify(value) : value);
+      }
+    }
+
+    if (payload.inputFields) {
+      console.log('[DEBUG] inputFields:', JSON.stringify(payload.inputFields, null, 2));
+    }
+
+    if (payload.outputFields) {
+      console.log('[DEBUG] outputFields:', JSON.stringify(payload.outputFields, null, 2));
+    }
+
+    console.log('[DEBUG] =======================================');
 
     const startTime = Date.now();
     let userId;
@@ -113,7 +138,6 @@ class EmailController {
       console.log('[EmailController] ✓ shortLivedToken present');
 
       // Estrai payload e userId
-      const payload = req.body.payload || req.body;
       const { inboundFieldValues, inputFields } = payload;
       userId = String(req.monday?.userId || payload.userId || 'unknown');
 
