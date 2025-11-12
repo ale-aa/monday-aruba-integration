@@ -75,9 +75,8 @@ router.post('/fields/email-options', async (req, res) => {
 
           if (email && email.includes('@')) {
             return {
-              value: email,
-              label: `${item.name} (${email})`,
-              itemId: item.id
+              title: `${item.name} (${email})`,
+              value: email
             };
           }
           return null;
@@ -89,7 +88,7 @@ router.post('/fields/email-options', async (req, res) => {
       // Ritorna opzioni
       return res.json({
         options: options.length > 0 ? options : [
-          { value: '', label: 'Nessuna email trovata nella colonna' }
+          { title: 'Nessuna email trovata nella colonna', value: '' }
         ]
       });
     }
@@ -97,7 +96,7 @@ router.post('/fields/email-options', async (req, res) => {
     // Fallback: nessun context disponibile
     return res.json({
       options: [
-        { value: '', label: 'Seleziona un item prima' }
+        { title: 'Seleziona un item prima', value: '' }
       ]
     });
 
@@ -105,7 +104,7 @@ router.post('/fields/email-options', async (req, res) => {
     console.error('[CustomField] Error:', error);
     return res.json({
       options: [
-        { value: '', label: 'Errore caricamento email' }
+        { title: 'Errore caricamento email', value: '' }
       ]
     });
   }
