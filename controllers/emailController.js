@@ -83,7 +83,7 @@ class EmailController {
    *
    * Input Fields (Recipe Sentence):
    * - itemId: Item (Trigger Output) - Required
-   * - email_column_id: Column (Email) - Required
+   * - columnId: Column (Email) - Required
    * - email: Email (Subject/Body) - Required
    *
    * POST /monday/sendEmail
@@ -172,7 +172,7 @@ class EmailController {
       }
 
       // ===== ESTRAI EMAIL COLUMN ID =====
-      const emailColumnData = inboundFieldValues?.email_column_id;
+      const emailColumnData = inboundFieldValues?.columnId;
       let emailColumnId;
 
       if (typeof emailColumnData === 'object' && emailColumnData?.id) {
@@ -187,7 +187,7 @@ class EmailController {
       console.log('[EmailController] Email column object:', emailColumnData);
 
       if (!emailColumnId) {
-        throw new Error('email_column_id mancante! Aggiungi un campo "email_column_id" con Type: Column e Restrict to: Email');
+        throw new Error('columnId mancante! Aggiungi un campo "columnId" con Type: Column e Restrict to: Email');
       }
 
       // ===== CHIAMA API MONDAY PER LEGGERE EMAIL =====
