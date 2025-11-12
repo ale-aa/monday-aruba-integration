@@ -16,6 +16,8 @@ router.post('/fields/email-options', async (req, res) => {
 
     // Debug JWT e token
     console.log('[CustomField] JWT payload keys:', Object.keys(jwtPayload));
+    console.log('[CustomField] Full JWT payload:', JSON.stringify(jwtPayload, null, 2));
+    console.log('[CustomField] shortLivedToken value:', shortLivedToken);
     console.log('[CustomField] shortLivedToken length:', shortLivedToken?.length);
     console.log('[CustomField] Token starts with:', shortLivedToken?.substring(0, 20));
 
@@ -116,10 +118,12 @@ router.post('/fields/email-options', async (req, res) => {
       const apiData = await apiResponse.json();
 
       if (apiData.errors) {
-        console.error('[CustomField] API errors:', apiData.errors);
+        console.error('[CustomField] API errors:', JSON.stringify(apiData.errors, null, 2));
+        const errorMessage = apiData.errors[0]?.message || 'Unknown API error';
+        console.error('[CustomField] First error:', errorMessage);
         return res.json({
           options: [
-            { title: 'Errore API Monday', value: '' }
+            { title: `Errore API Monday: ${errorMessage}`, value: '' }
           ]
         });
       }
