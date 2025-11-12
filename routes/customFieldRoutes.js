@@ -28,7 +28,7 @@ router.post('/fields/email-options', async (req, res) => {
 
       // Query per leggere colonne e items
       const query = `
-        query ($boardId: [Int!]!) {
+        query ($boardId: [ID!]!) {
           boards (ids: $boardId) {
             columns {
               id
@@ -61,7 +61,7 @@ router.post('/fields/email-options', async (req, res) => {
         },
         body: JSON.stringify({
           query,
-          variables: { boardId: [Number(boardId)] }
+          variables: { boardId: [boardId.toString()] }
         })
       });
 
