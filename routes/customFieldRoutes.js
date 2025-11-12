@@ -33,18 +33,27 @@ router.post('/fields/definitions', async (req, res) => {
     console.log('[FieldDefs] JWT verified successfully');
 
     // Restituisci la DEFINIZIONE dei campi
-    // Questo descrive la STRUTTURA dei campi, non i valori
+    // Monday richiede di definire i campi di INPUT (struttura)
+    // NON le opzioni dinamiche (quelle vengono dal remote_options_url)
     const fieldDefinitions = {
       kind: 'field_definitions',
       fields: [
+        {
+          id: 'emailColumnId',
+          title: 'Email column',
+          description: 'Select the email column from the board',
+          type: 'column',
+          allowed_column_types: ['email'],
+          required: true
+        },
         {
           id: 'recipient_email',
           title: 'Email Recipient',
           description: 'Select recipient email from board items',
           type: 'dropdown',
           required: true,
-          remote_options_url: 'https://ec7ca-service-32281405-f2dd3966.us.monday.app/fields/email-options',
-          dependencies: ['board_id']
+          remote_options_url: 'https://d4df2-service-32281405-f2dd3966.us.monday.app/fields/email-options',
+          dependencies: ['emailColumnId']
         }
       ]
     };
@@ -126,13 +135,16 @@ router.post('/fields/email-options', async (req, res) => {
       console.log('[CustomField] Using MONDAY_API_TOKEN from environment');
     }
 
-    // Estrai boardId dalla dependency
+    // Estrai dati dal payload
     const payload = req.body.payload || req.body;
     const boardId = payload.board_id ||
                     payload.boardId ||
                     payload.dependencies?.board_id;
+    const emailColumnId = payload.emailColumnId ||
+                          payload.dependencies?.emailColumnId;
 
     console.log('[CustomField] Extracted boardId:', boardId);
+    console.log('[CustomField] Extracted emailColumnId:', emailColumnId);
     console.log('[CustomField] Full payload structure:', JSON.stringify(payload, null, 2));
 
     // Determina quale token usare per l'API
@@ -275,23 +287,42 @@ router.post('/fields/email-options', async (req, res) => {
     console.log('[CustomField] Board name:', board.name);
     console.log('[CustomField] Total columns:', board.columns.length);
 
-    // Trova le colonne di tipo email
-    const emailColumns = board.columns.filter(col => col.type === 'email');
-    console.log('[CustomField] Email columns found:', emailColumns.length);
+    // Determina quale colonna email usare
+    let selectedEmailColumn;
 
-    if (emailColumns.length === 0) {
-      console.warn('[CustomField] No email columns on board');
-      return res.json({
-        kind: 'options',
-        options: [
-          { value: '', title: 'Nessuna colonna email sulla board' }
-        ]
-      });
+    if (emailColumnId) {
+      // Se emailColumnId è fornito dalla dependency, usalo
+      selectedEmailColumn = board.columns.find(col => col.id === emailColumnId);
+      if (!selectedEmailColumn) {
+        console.error('[CustomField] Email column not found:', emailColumnId);
+        return res.json({
+          kind: 'options',
+          options: [
+            { value: '', title: `Colonna email ${emailColumnId} non trovata` }
+          ]
+        });
+      }
+      console.log('[CustomField] Using provided email column:', selectedEmailColumn.id);
+    } else {
+      // Altrimenti auto-detect la prima colonna email
+      const emailColumns = board.columns.filter(col => col.type === 'email');
+      console.log('[CustomField] Email columns found:', emailColumns.length);
+
+      if (emailColumns.length === 0) {
+        console.warn('[CustomField] No email columns on board');
+        return res.json({
+          kind: 'options',
+          options: [
+            { value: '', title: 'Nessuna colonna email sulla board' }
+          ]
+        });
+      }
+
+      selectedEmailColumn = emailColumns[0];
+      console.log('[CustomField] Auto-detected email column:', selectedEmailColumn.id);
     }
 
-    // Usa la prima colonna email
-    const emailColumn = emailColumns[0];
-    console.log('[CustomField] Using email column:', emailColumn.id, '-', emailColumn.title);
+    console.log('[CustomField] Using email column:', selectedEmailColumn.id, '-', selectedEmailColumn.title);
 
     // Estrai le email dagli items
     const items = board.items_page?.items || [];
@@ -299,7 +330,7 @@ router.post('/fields/email-options', async (req, res) => {
 
     const options = [];
     for (const item of items) {
-      const emailValue = item.column_values.find(cv => cv.id === emailColumn.id);
+      const emailValue = item.column_values.find(cv => cv.id === selectedEmailColumn.id);
 
       if (!emailValue) {
         continue;
