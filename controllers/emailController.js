@@ -82,7 +82,7 @@ class EmailController {
    * Legge l'email destinatario via API di Monday usando shortLivedToken
    *
    * Input Fields (Recipe Sentence):
-   * - item: Item (Trigger Output) - Required
+   * - itemId: Item (Trigger Output) - Required
    * - email_column_id: Column (Email) - Required
    * - email: Email (Subject/Body) - Required
    *
@@ -129,7 +129,7 @@ class EmailController {
       }
 
       // ===== ESTRAI ITEM ID =====
-      const itemData = inboundFieldValues?.item;
+      const itemData = inboundFieldValues?.itemId;
       let itemId;
 
       if (typeof itemData === 'object' && itemData?.id) {
@@ -144,7 +144,7 @@ class EmailController {
       console.log('[EmailController] Item object:', itemData);
 
       if (!itemId) {
-        throw new Error('itemId mancante! Aggiungi un campo "item" con Type: Item e Source: Trigger Output');
+        throw new Error('itemId mancante! Aggiungi un campo "itemId" con Type: Item e Source: Trigger Output');
       }
 
       // ===== ESTRAI EMAIL COLUMN ID =====
