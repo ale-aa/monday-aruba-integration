@@ -10,7 +10,8 @@ router.post('/fields/email-options', async (req, res) => {
     // Verifica JWT
     const authHeader = req.headers.authorization;
     const token = authHeader?.replace('Bearer ', '');
-    const jwtPayload = verifyJWT(token, process.env.SIGNING_SECRET);
+    const signingSecret = process.env.SIGNING_SECRET || process.env.MONDAY_SIGNING_SECRET;
+    const jwtPayload = verifyJWT(token, signingSecret);
     const shortLivedToken = jwtPayload.shortLivedToken;
 
     // Estrai context (Monday passa info sul contesto)
