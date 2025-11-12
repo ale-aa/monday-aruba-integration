@@ -12,6 +12,7 @@ const { emailLimiter, authorizationLimiter, apiLimiter } = require('./middleware
 // Import routes
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
+const customFieldRoutes = require('./routes/customFieldRoutes');
 
 // Initialize Express app
 const app = express();
@@ -59,6 +60,7 @@ app.use('/monday/testSMTP', apiLimiter);
 // Register routes
 app.use('/', authRoutes);
 app.use('/', emailRoutes);
+app.use('/', customFieldRoutes);
 
 // Protected API Routes with Monday SIGNING_SECRET
 app.get('/api/monday/test', verifyMonday, (req, res) => {
