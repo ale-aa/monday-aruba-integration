@@ -6,6 +6,47 @@ const verifyMonday = require('../middleware/verifyMonday');
 const EmailController = require('../controllers/emailController');
 
 /**
+ * POST /monday/fetchFieldDefs
+ * Returns field definitions for Monday.com Dynamic Mapping Field
+ *
+ * Called by Monday when opening the field selector in the automation builder
+ * This endpoint defines what columns/fields are available for selection
+ *
+ * Header richiesto:
+ * - Authorization: Bearer <JWT_TOKEN> (verificato da verifyMonday middleware)
+ *
+ * Risposta (200):
+ * {
+ *   "kind": "field_definitions",
+ *   "fields": [
+ *     {
+ *       "id": "dynamic_email",
+ *       "title": "Email column",
+ *       "type": "column",
+ *       "allowed_column_types": ["email"],
+ *       "required": true
+ *     }
+ *   ]
+ * }
+ */
+router.post('/monday/fetchFieldDefs', verifyMonday, (req, res) => {
+  console.log('[FieldDefs] Request body:', JSON.stringify(req.body, null, 2));
+
+  res.status(200).json({
+    kind: 'field_definitions',
+    fields: [
+      {
+        id: 'dynamic_email',
+        title: 'Email column',
+        type: 'column',
+        allowed_column_types: ['email'],
+        required: true
+      }
+    ]
+  });
+});
+
+/**
  * POST /monday/sendEmail
  * Invia un'email usando SMTP di Aruba
  *
