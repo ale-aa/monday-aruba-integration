@@ -1,17 +1,19 @@
 /**
  * EmailController - Gestione invio email tramite SMTP Aruba
  *
- * Flusso automation Monday:
- * When status changes → send {{email}} to {{someone}}
+ * Flusso automation Monday con Dynamic Mapping Field:
+ * When status changes → send {{email}} with {{dynamic_email}}
+ *
+ * Dynamic Mapping Field passa automaticamente il valore della colonna email mappata dall'utente
  *
  * Estrae da inboundFieldValues:
- * - {{someone}} → destinatario email
+ * - {{dynamic_email}} → destinatario email (da Dynamic Mapping Field)
  * - {{email.subject}} → oggetto email
  * - {{email.body}} → corpo email
  *
  * Invia via SMTP Aruba con credenziali dell'utente
  *
- * Updated: 2025-11-08 - Test completo OK, flusso automation verificato
+ * Updated: 2025-11-14 - Switched to Monday Dynamic Mapping Field
  */
 
 const IntegrationCredentials = require('../models/IntegrationCredentials');
@@ -152,17 +154,56 @@ class EmailController {
         throw new Error('userId non trovato nel JWT');
       }
 
-      // ===== ESTRAI EMAIL DAL DYNAMIC FIELD CUSTOM =====
-      // Il campo custom field si chiama 'recipient_email' (dall'endpoint /fields/definitions)
-      const recipient_email = inboundFieldValues?.recipient_email || inboundFieldValues?.dynamic_email;
+      // ===== ESTRAI EMAIL DAL DYNAMIC MAPPING FIELD =====
+      // Dynamic Mapping Field passa il valore della colonna email mappata
+      let recipient_email = null;
 
-      console.log('[EmailController] recipient_email (from custom field):', recipient_email);
-
-      if (!recipient_email || !recipient_email.includes('@')) {
-        throw new Error('Email destinatario non valida dal custom field: ' + recipient_email);
+      // Opzione 1: Direttamente in dynamic_email (come stringa)
+      if (inboundFieldValues?.dynamic_email && typeof inboundFieldValues.dynamic_email === 'string') {
+        recipient_email = inboundFieldValues.dynamic_email;
+        console.log('[EmailController] Found email in dynamic_email (string)');
       }
 
-      console.log('[EmailController] ✅ Recipient email from custom field:', recipient_email);
+      // Opzione 2: Dentro dynamic_email come oggetto con proprietà email
+      if (!recipient_email && inboundFieldValues?.dynamic_email && typeof inboundFieldValues.dynamic_email === 'object') {
+        recipient_email = inboundFieldValues.dynamic_email.email || inboundFieldValues.dynamic_email.text;
+        console.log('[EmailController] Found email in dynamic_email (object)');
+      }
+
+      // Opzione 3: Fallback su recipient_email per compatibilità
+      if (!recipient_email && inboundFieldValues?.recipient_email) {
+        recipient_email = inboundFieldValues.recipient_email;
+        console.log('[EmailController] Found email in recipient_email (fallback)');
+      }
+
+      // Opzione 4: Cerca in tutte le chiavi che contengono email
+      if (!recipient_email) {
+        for (const [key, value] of Object.entries(inboundFieldValues || {})) {
+          // Controlla se è una stringa con @
+          if (typeof value === 'string' && value.includes('@')) {
+            recipient_email = value;
+            console.log('[EmailController] Found email in field:', key);
+            break;
+          }
+          // Controlla se è un oggetto con proprietà email
+          if (typeof value === 'object' && value?.email) {
+            recipient_email = value.email;
+            console.log('[EmailController] Found email in object field:', key);
+            break;
+          }
+        }
+      }
+
+      console.log('[EmailController] Extracted recipient_email:', recipient_email);
+
+      if (!recipient_email || !recipient_email.includes('@')) {
+        console.error('[EmailController] ❌ Email destinatario non valida!');
+        console.error('[EmailController] inboundFieldValues keys:', Object.keys(inboundFieldValues || {}));
+        console.error('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
+        throw new Error('Email destinatario non trovata. Assicurati di mappare una colonna email nel Dynamic Mapping Field.');
+      }
+
+      console.log('[EmailController] ✅ Recipient email:', recipient_email);
 
       // ===== ESTRAI SUBJECT E BODY =====
       const emailObj = inboundFieldValues?.email || {};
