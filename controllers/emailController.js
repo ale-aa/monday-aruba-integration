@@ -51,6 +51,89 @@ function savePayloadLog(payload, userId) {
 }
 
 /**
+ * Recupera il valore email da Monday.com usando GraphQL
+ * Dynamic Mapping Field passa solo l'ID della colonna, non il valore
+ * Bisogna usare itemId + columnId per recuperare il valore
+ */
+async function fetchEmailFromColumn(opts) {
+  const { shortLivedToken, itemId, columnId } = opts;
+
+  if (!shortLivedToken || !itemId || !columnId) {
+    console.error('[EmailController] Missing required parameters for GraphQL query');
+    return null;
+  }
+
+  const query = `
+    query($itemId: [Int], $columnId: [String]) {
+      items(ids: $itemId) {
+        id
+        name
+        column_values(ids: $columnId) {
+          id
+          title
+          text
+          value
+        }
+      }
+    }
+  `;
+
+  try {
+    console.log('[EmailController] Fetching email from column via GraphQL...');
+    console.log('[EmailController] itemId:', itemId, 'columnId:', columnId);
+
+    const response = await fetch('https://api.monday.com/v2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': shortLivedToken
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          itemId: [parseInt(itemId)],
+          columnId: [columnId]
+        }
+      })
+    });
+
+    const data = await response.json();
+    console.log('[EmailController] GraphQL response:', JSON.stringify(data, null, 2));
+
+    if (data.errors) {
+      console.error('[EmailController] GraphQL error:', data.errors);
+      return null;
+    }
+
+    const columnValue = data?.data?.items?.[0]?.column_values?.[0];
+    if (!columnValue) {
+      console.warn('[EmailController] Column value not found');
+      return null;
+    }
+
+    // Estrai email da text o value
+    let email = columnValue.text;
+
+    // Se text è vuoto, prova a parsare value
+    if (!email && columnValue.value) {
+      try {
+        const parsed = JSON.parse(columnValue.value);
+        email = parsed.email || parsed.text;
+      } catch (e) {
+        email = columnValue.value;
+      }
+    }
+
+    console.log('[EmailController] Extracted email from column:', email);
+    return email;
+
+  } catch (error) {
+    console.error('[EmailController] Error fetching email from column:', error.message);
+    return null;
+  }
+}
+
+/**
  * Controller per gestire l'invio di email tramite SMTP di Aruba
  * NOTA: Su Monday Code non è bloccato l'accesso alle porte SMTP
  */
@@ -155,55 +238,96 @@ class EmailController {
       }
 
       // ===== ESTRAI EMAIL DAL DYNAMIC MAPPING FIELD =====
-      // Dynamic Mapping Field passa il valore della colonna email mappata
+      // Dynamic Mapping Field può passare:
+      // 1. Il valore email diretto (stringa con @)
+      // 2. L'ID della colonna (se il trigger non espone itemValues)
+      // 3. Un oggetto con proprietà email/text
       let recipient_email = null;
+      let columnId = null;
+      let itemId = null;
 
-      // Opzione 1: Direttamente in dynamic_email (come stringa)
-      if (inboundFieldValues?.dynamic_email && typeof inboundFieldValues.dynamic_email === 'string') {
-        recipient_email = inboundFieldValues.dynamic_email;
-        console.log('[EmailController] Found email in dynamic_email (string)');
+      console.log('[EmailController] ========== EXTRACTING EMAIL ==========');
+
+      // Estrai itemId (necessario per GraphQL)
+      itemId = inboundFieldValues?.itemId ||
+               inputFields?.itemId ||
+               inboundFieldValues?.item_id ||
+               payload.itemId;
+
+      console.log('[EmailController] itemId:', itemId);
+
+      // Estrai dynamic_email (potrebbe essere valore o columnId)
+      const dynamicEmailValue = inboundFieldValues?.dynamic_email || inputFields?.dynamic_email;
+      console.log('[EmailController] dynamic_email value:', dynamicEmailValue);
+
+      // Opzione 1: Se è una stringa con @ -> è il valore email diretto
+      if (typeof dynamicEmailValue === 'string' && dynamicEmailValue.includes('@')) {
+        recipient_email = dynamicEmailValue;
+        console.log('[EmailController] ✓ Found email directly in dynamic_email (string)');
       }
 
-      // Opzione 2: Dentro dynamic_email come oggetto con proprietà email
-      if (!recipient_email && inboundFieldValues?.dynamic_email && typeof inboundFieldValues.dynamic_email === 'object') {
-        recipient_email = inboundFieldValues.dynamic_email.email || inboundFieldValues.dynamic_email.text;
-        console.log('[EmailController] Found email in dynamic_email (object)');
+      // Opzione 2: Se è una stringa senza @ -> è probabilmente un columnId, usa GraphQL
+      if (!recipient_email && typeof dynamicEmailValue === 'string' && !dynamicEmailValue.includes('@')) {
+        columnId = dynamicEmailValue;
+        console.log('[EmailController] ✓ Found columnId in dynamic_email:', columnId);
+
+        // Recupera il valore email via GraphQL usando itemId + columnId
+        if (itemId && columnId && shortLivedToken) {
+          console.log('[EmailController] Attempting to fetch email via GraphQL...');
+          recipient_email = await fetchEmailFromColumn({
+            shortLivedToken,
+            itemId,
+            columnId
+          });
+
+          if (recipient_email) {
+            console.log('[EmailController] ✓ Email fetched via GraphQL:', recipient_email);
+          }
+        }
       }
 
-      // Opzione 3: Fallback su recipient_email per compatibilità
+      // Opzione 3: Se è un oggetto con proprietà email/text
+      if (!recipient_email && typeof dynamicEmailValue === 'object' && dynamicEmailValue) {
+        recipient_email = dynamicEmailValue.email || dynamicEmailValue.text;
+        if (recipient_email) {
+          console.log('[EmailController] ✓ Found email in dynamic_email object');
+        }
+      }
+
+      // Opzione 4: Fallback su recipient_email per compatibilità
       if (!recipient_email && inboundFieldValues?.recipient_email) {
         recipient_email = inboundFieldValues.recipient_email;
-        console.log('[EmailController] Found email in recipient_email (fallback)');
+        console.log('[EmailController] ✓ Found email in recipient_email (fallback)');
       }
 
-      // Opzione 4: Cerca in tutte le chiavi che contengono email
+      // Opzione 5: Cerca in tutte le chiavi che contengono email
       if (!recipient_email) {
         for (const [key, value] of Object.entries(inboundFieldValues || {})) {
-          // Controlla se è una stringa con @
           if (typeof value === 'string' && value.includes('@')) {
             recipient_email = value;
-            console.log('[EmailController] Found email in field:', key);
+            console.log('[EmailController] ✓ Found email in field:', key);
             break;
           }
-          // Controlla se è un oggetto con proprietà email
           if (typeof value === 'object' && value?.email) {
             recipient_email = value.email;
-            console.log('[EmailController] Found email in object field:', key);
+            console.log('[EmailController] ✓ Found email in object field:', key);
             break;
           }
         }
       }
 
-      console.log('[EmailController] Extracted recipient_email:', recipient_email);
+      console.log('[EmailController] Final recipient_email:', recipient_email);
 
       if (!recipient_email || !recipient_email.includes('@')) {
         console.error('[EmailController] ❌ Email destinatario non valida!');
         console.error('[EmailController] inboundFieldValues keys:', Object.keys(inboundFieldValues || {}));
         console.error('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
-        throw new Error('Email destinatario non trovata. Assicurati di mappare una colonna email nel Dynamic Mapping Field.');
+        console.error('[EmailController] inputFields:', JSON.stringify(inputFields, null, 2));
+        throw new Error('Email destinatario non trovata. Assicurati che il trigger passi itemId e che hai mappato la colonna email nel Dynamic Mapping Field.');
       }
 
       console.log('[EmailController] ✅ Recipient email:', recipient_email);
+      console.log('[EmailController] ==========================================');
 
       // ===== ESTRAI SUBJECT E BODY =====
       const emailObj = inboundFieldValues?.email || {};
