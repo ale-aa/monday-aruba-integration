@@ -16,6 +16,7 @@ const EmailService = require('../services/emailService');
 const { verifyJWT } = require('../utils/jwtUtils');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 const emailService = new EmailService();
 
 // Helper per salvare payload in file
@@ -42,6 +43,54 @@ function savePayloadLog(payload, userId) {
     console.log('[EmailController] Payload saved to file');
   } catch (err) {
     console.error('[EmailController] Error saving payload:', err.message);
+  }
+}
+
+// Helper per recuperare il valore della colonna email da Monday API tramite GraphQL
+async function fetchEmailFromColumn(itemId, columnId, userToken) {
+  try {
+    console.log('[EmailController] ========== FETCHING EMAIL FROM COLUMN ==========');
+    console.log('[EmailController] itemId:', itemId);
+    console.log('[EmailController] columnId:', columnId);
+
+    const query = `
+      query {
+        items(ids: ${itemId}) {
+          id
+          column_values(ids: "${columnId}") {
+            id
+            text
+            value
+          }
+        }
+      }
+    `;
+
+    const response = await axios.post('https://api.monday.com/graphql',
+      { query },
+      {
+        headers: {
+          'Authorization': userToken,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const columnValues = response.data?.data?.items?.[0]?.column_values;
+    if (!columnValues || columnValues.length === 0) {
+      throw new Error(`Colonna email non trovata per itemId: ${itemId}`);
+    }
+
+    const emailField = columnValues[0];
+    const email = emailField.text || emailField.value;
+
+    console.log('[EmailController] ✓ Email retrieved from column:', email);
+    console.log('[EmailController] ==========================================');
+
+    return email;
+  } catch (err) {
+    console.error('[EmailController] ❌ Error fetching email from column:', err.message);
+    throw new Error(`Errore nel recupero email dalla colonna: ${err.message}`);
   }
 }
 
@@ -95,8 +144,11 @@ class EmailController {
       console.log('[EmailController] ========== EXTRACTING RECIPIENT EMAIL ==========');
       console.log('[EmailController] Available fields in inboundFieldValues:', Object.keys(inboundFieldValues || {}));
       console.log('[EmailController] Available fields in inputFields:', Object.keys(inputFields || {}));
+      console.log('[EmailController] Payload keys:', Object.keys(payload || {}));
 
       let recipient_email = null;
+
+      // Metodo 1: Input Field approach (recipientEmail passato direttamente)
       const recipientField = inboundFieldValues?.recipientEmail || inputFields?.recipientEmail;
 
       console.log('[EmailController] recipientField raw value:', JSON.stringify(recipientField));
@@ -139,6 +191,10 @@ class EmailController {
         else {
           console.log('[EmailController] ❌ recipientField has unexpected type:', typeof recipientField);
         }
+      } else if (payload.itemId && payload.columnId) {
+        // Metodo 2: Column ID approach (richiede GraphQL query)
+        console.log('[EmailController] → Input Field not found, trying Column ID approach...');
+        recipient_email = await fetchEmailFromColumn(payload.itemId, payload.columnId, token);
       } else {
         console.log('[EmailController] ❌ recipientField is null/undefined');
         console.log('[EmailController] → Checking all inboundFieldValues for email patterns...');
@@ -165,7 +221,8 @@ class EmailController {
         console.error('[EmailController] Extracted value:', recipient_email);
         console.error('[EmailController] Full inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
         console.error('[EmailController] Full inputFields:', JSON.stringify(inputFields, null, 2));
-        throw new Error('Email destinatario non trovata. Assicurati di aver mappato il campo recipientEmail correttamente nel form.');
+        console.error('[EmailController] Full payload:', JSON.stringify(payload, null, 2));
+        throw new Error('Email destinatario non trovata. Assicurati di aver mappato il campo recipientEmail correttamente nel form o di aver passato itemId e columnId.');
       }
 
       console.log('[EmailController] ✅ FINAL Recipient email:', recipient_email);
