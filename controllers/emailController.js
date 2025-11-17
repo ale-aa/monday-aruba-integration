@@ -115,6 +115,12 @@ class EmailController {
     console.log('[EmailController] req.body:', JSON.stringify(req.body, null, 2));
 
     const payload = req.body.payload || req.body;
+
+    // Log completo della struttura del payload
+    console.log('[EmailController] ========== PAYLOAD STRUCTURE DEBUG ==========');
+    console.log('[EmailController] payload keys:', Object.keys(payload));
+    console.log('[EmailController] payload:', JSON.stringify(payload, null, 2));
+
     const { inboundFieldValues, inputFields } = payload;
 
     const startTime = Date.now();
@@ -144,7 +150,13 @@ class EmailController {
       console.log('[EmailController] ========== EXTRACTING RECIPIENT EMAIL ==========');
       console.log('[EmailController] Available fields in inboundFieldValues:', Object.keys(inboundFieldValues || {}));
       console.log('[EmailController] Available fields in inputFields:', Object.keys(inputFields || {}));
-      console.log('[EmailController] Payload keys:', Object.keys(payload || {}));
+      console.log('[EmailController] Payload root keys:', Object.keys(payload || {}));
+
+      // Cerca itemId in varie posizioni
+      console.log('[EmailController] Searching for itemId...');
+      console.log('[EmailController] payload.itemId:', payload.itemId);
+      console.log('[EmailController] inboundFieldValues.itemId:', inboundFieldValues?.itemId);
+      console.log('[EmailController] inputFields.itemId:', inputFields?.itemId);
 
       let recipient_email = null;
 
