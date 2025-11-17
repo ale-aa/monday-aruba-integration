@@ -93,32 +93,82 @@ class EmailController {
 
       // ===== ESTRAI EMAIL DESTINATARIO =====
       console.log('[EmailController] ========== EXTRACTING RECIPIENT EMAIL ==========');
+      console.log('[EmailController] Available fields in inboundFieldValues:', Object.keys(inboundFieldValues || {}));
+      console.log('[EmailController] Available fields in inputFields:', Object.keys(inputFields || {}));
 
       let recipient_email = null;
       const recipientField = inboundFieldValues?.recipientEmail || inputFields?.recipientEmail;
 
-      console.log('[EmailController] recipientField:', recipientField);
+      console.log('[EmailController] recipientField raw value:', JSON.stringify(recipientField));
       console.log('[EmailController] recipientField type:', typeof recipientField);
 
-      // Gestisci formato oggetto { email: "..." }
-      if (recipientField && typeof recipientField === 'object') {
-        recipient_email = recipientField.email || recipientField.text || recipientField.value;
-        console.log('[EmailController] ✓ Extracted email from object:', recipient_email);
-      }
-      // Gestisci formato stringa
-      else if (typeof recipientField === 'string') {
-        recipient_email = recipientField;
-        console.log('[EmailController] ✓ Extracted email from string:', recipient_email);
+      // Estrazione email con fallback completo
+      if (recipientField) {
+        // Caso 1: Formato oggetto { email: "..." }
+        if (typeof recipientField === 'object' && recipientField !== null) {
+          console.log('[EmailController] → recipientField is OBJECT');
+          console.log('[EmailController] → Object keys:', Object.keys(recipientField));
+          console.log('[EmailController] → recipientField.email:', recipientField.email);
+          console.log('[EmailController] → recipientField.text:', recipientField.text);
+          console.log('[EmailController] → recipientField.value:', recipientField.value);
+
+          // Prova email -> text -> value
+          recipient_email = recipientField.email;
+          if (!recipient_email) {
+            console.log('[EmailController] → email field empty, trying text field...');
+            recipient_email = recipientField.text;
+          }
+          if (!recipient_email) {
+            console.log('[EmailController] → text field empty, trying value field...');
+            recipient_email = recipientField.value;
+          }
+
+          if (recipient_email) {
+            console.log('[EmailController] ✓ Extracted email from object (via fallback):', recipient_email);
+          } else {
+            console.log('[EmailController] ❌ Object has no valid email field');
+          }
+        }
+        // Caso 2: Formato stringa diretta
+        else if (typeof recipientField === 'string') {
+          console.log('[EmailController] → recipientField is STRING');
+          recipient_email = recipientField;
+          console.log('[EmailController] ✓ Extracted email from string:', recipient_email);
+        }
+        // Caso 3: Altro formato non riconosciuto
+        else {
+          console.log('[EmailController] ❌ recipientField has unexpected type:', typeof recipientField);
+        }
+      } else {
+        console.log('[EmailController] ❌ recipientField is null/undefined');
+        console.log('[EmailController] → Checking all inboundFieldValues for email patterns...');
+
+        // Fallback: Cerca qualsiasi campo che contenga "@"
+        for (const [key, value] of Object.entries(inboundFieldValues || {})) {
+          console.log(`[EmailController] → Checking field "${key}":`, typeof value === 'object' ? JSON.stringify(value) : value);
+          if (typeof value === 'string' && value.includes('@')) {
+            recipient_email = value;
+            console.log(`[EmailController] ✓ Found email in field "${key}":`, recipient_email);
+            break;
+          }
+          if (typeof value === 'object' && value?.email && value.email.includes('@')) {
+            recipient_email = value.email;
+            console.log(`[EmailController] ✓ Found email in object field "${key}":`, recipient_email);
+            break;
+          }
+        }
       }
 
+      // Validazione finale
       if (!recipient_email || !recipient_email.includes('@')) {
-        console.error('[EmailController] ❌ Email destinatario non valida!');
-        console.error('[EmailController] inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
-        console.error('[EmailController] inputFields:', JSON.stringify(inputFields, null, 2));
-        throw new Error('Email destinatario non trovata. Assicurati di aver mappato il campo recipientEmail.');
+        console.error('[EmailController] ❌ Email destinatario NON VALIDA o MANCANTE!');
+        console.error('[EmailController] Extracted value:', recipient_email);
+        console.error('[EmailController] Full inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
+        console.error('[EmailController] Full inputFields:', JSON.stringify(inputFields, null, 2));
+        throw new Error('Email destinatario non trovata. Assicurati di aver mappato il campo recipientEmail correttamente nel form.');
       }
 
-      console.log('[EmailController] ✅ Recipient email:', recipient_email);
+      console.log('[EmailController] ✅ FINAL Recipient email:', recipient_email);
       console.log('[EmailController] ==========================================');
 
       // ===== ESTRAI SUBJECT E BODY =====
