@@ -47,13 +47,13 @@ function savePayloadLog(payload, userId) {
 }
 
 // Helper per recuperare il valore della colonna email da Monday API tramite GraphQL
-// Nota: Usa shortLivedToken estratto dal JWT, non il JWT intero
-async function fetchEmailFromColumn(itemId, columnId, shortLivedToken) {
+// Usa il JWT token dal webhook per autenticarsi con Monday GraphQL API
+async function fetchEmailFromColumn(itemId, columnId, graphqlToken) {
   try {
     console.log('[EmailController] ========== FETCHING EMAIL FROM COLUMN ==========');
     console.log('[EmailController] itemId:', itemId);
     console.log('[EmailController] columnId:', columnId);
-    console.log('[EmailController] Using shortLivedToken for GraphQL API');
+    console.log('[EmailController] Using JWT token for GraphQL API');
 
     const query = `
       query {
@@ -75,7 +75,7 @@ async function fetchEmailFromColumn(itemId, columnId, shortLivedToken) {
       { query },
       {
         headers: {
-          'Authorization': shortLivedToken,
+          'Authorization': graphqlToken,  // JWT token from webhook
           'Content-Type': 'application/json'
         }
       }
@@ -172,12 +172,13 @@ class EmailController {
       userId = String(jwtPayload?.user_id || req.monday?.userId || payload.userId || 'unknown');
       console.log('[EmailController] userId:', userId);
 
-      // For GraphQL API calls, use MONDAY_CLIENT_SECRET (not JWT token)
-      // JWT tokens are for webhook verification, not GraphQL API authentication
-      const graphqlToken = process.env.MONDAY_CLIENT_SECRET;
+      // For GraphQL API calls in webhook context, use the JWT token directly
+      // The JWT token contains user context needed for GraphQL queries
+      const graphqlToken = token;  // Use the JWT token from Authorization header
+      console.log('[EmailController] Using JWT token for GraphQL API calls');
       console.log('[EmailController] graphqlToken available:', !!graphqlToken);
       if (!graphqlToken) {
-        throw new Error('MONDAY_CLIENT_SECRET not configured for GraphQL API calls');
+        throw new Error('JWT token required for GraphQL API calls');
       }
 
       if (!userId || userId === 'unknown') {
