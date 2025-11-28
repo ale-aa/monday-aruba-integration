@@ -128,14 +128,19 @@ class EmailController {
    * POST /monday/sendEmail
    */
   static async sendEmail(req, res) {
+    console.error('🔥🔥🔥 SENDEMAIL CALLED 🔥🔥🔥');
+    console.error('[EmailController] REQUEST TIME:', new Date().toISOString());
     console.log('🔥 SENDEMAIL CALLED');
     console.log('[EmailController] req.body:', JSON.stringify(req.body, null, 2));
 
     const payload = req.body.payload || req.body;
 
     // Log completo della struttura del payload
+    console.error('[EmailController] ========== PAYLOAD STRUCTURE DEBUG ==========');
     console.log('[EmailController] ========== PAYLOAD STRUCTURE DEBUG ==========');
+    console.error('[EmailController] payload keys:', Object.keys(payload));
     console.log('[EmailController] payload keys:', Object.keys(payload));
+    console.error('[EmailController] payload:', JSON.stringify(payload, null, 2));
     console.log('[EmailController] payload:', JSON.stringify(payload, null, 2));
 
     const { inboundFieldValues, inputFields } = payload;
@@ -226,7 +231,15 @@ class EmailController {
         const columnId = payload.columnId || inboundFieldValues?.columnId;
         console.log('[EmailController] → Input Field not found, trying Column ID approach...');
         console.log('[EmailController] → Using itemId:', itemId, 'columnId:', columnId);
-        recipient_email = await fetchEmailFromColumn(itemId, columnId, token);
+        console.error('[EmailController] 🔍 CALLING fetchEmailFromColumn with itemId=' + itemId + ', columnId=' + columnId);
+        try {
+          recipient_email = await fetchEmailFromColumn(itemId, columnId, token);
+          console.error('[EmailController] ✅ fetchEmailFromColumn returned:', recipient_email);
+        } catch (graphqlErr) {
+          console.error('[EmailController] ❌ fetchEmailFromColumn threw error:', graphqlErr.message);
+          console.error('[EmailController] Full error:', graphqlErr);
+          throw graphqlErr;
+        }
       } else {
         console.log('[EmailController] ❌ recipientField is null/undefined');
         console.log('[EmailController] → Checking all inboundFieldValues for email patterns...');
