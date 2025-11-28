@@ -43,8 +43,14 @@ router.post('/monday/fetchFieldDefs', verifyMonday, (req, res) => {
         required: true
       },
       {
-        id: 'email',
-        title: 'Email Content (Subject + Body)',
+        id: 'emailSubject',
+        title: 'Email Subject',
+        type: 'text',
+        required: true
+      },
+      {
+        id: 'emailBody',
+        title: 'Email Body',
         type: 'long_text',
         required: true
       }

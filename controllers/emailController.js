@@ -243,10 +243,20 @@ class EmailController {
       console.log('[EmailController] ==========================================');
 
       // ===== ESTRAI SUBJECT E BODY =====
-      const emailObj = inboundFieldValues?.email || {};
-      let subject = emailObj.subject || inputFields?.subject || 'Email da Monday.com';
-      let body = emailObj.body || inputFields?.body || '';
+      // Metodo 1: Campi separati (emailSubject e emailBody)
+      let subject = inboundFieldValues?.emailSubject || inputFields?.emailSubject || 'Email da Monday.com';
+      let body = inboundFieldValues?.emailBody || inputFields?.emailBody || '';
 
+      // Fallback: Campo email oggetto (se presente)
+      const emailObj = inboundFieldValues?.email || {};
+      if (!subject || subject === 'Email da Monday.com') {
+        subject = emailObj.subject || 'Email da Monday.com';
+      }
+      if (!body) {
+        body = emailObj.body || '';
+      }
+
+      // Gestione campi oggetto
       if (subject && typeof subject === 'object') {
         subject = subject.value || subject.text || 'Email da Monday.com';
       }
