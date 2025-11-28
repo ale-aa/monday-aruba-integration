@@ -173,12 +173,10 @@ class EmailController {
       console.log('[EmailController] userId:', userId);
 
       // EXTRACT shortLivedToken from JWT for GraphQL API calls
-      const shortLivedToken = jwtPayload?.shortLivedToken;
-      console.log('[EmailController] shortLivedToken extracted:', !!shortLivedToken);
-      console.log('[EmailController] shortLivedToken value:', shortLivedToken?.substring(0, 50) || 'NOT FOUND');
-      if (!shortLivedToken) {
-        throw new Error('shortLivedToken non trovato nel JWT payload');
-      }
+      // Monday might not send shortLivedToken - if missing, fallback to original token
+      const shortLivedToken = jwtPayload?.shortLivedToken || token;
+      console.log('[EmailController] shortLivedToken extracted:', !!jwtPayload?.shortLivedToken);
+      console.log('[EmailController] Using token for GraphQL:', shortLivedToken?.substring(0, 50) || 'NO TOKEN');
 
       if (!userId || userId === 'unknown') {
         throw new Error('userId non trovato nel JWT');
