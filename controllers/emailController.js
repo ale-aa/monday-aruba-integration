@@ -145,6 +145,11 @@ class EmailController {
 
     const { inboundFieldValues, inputFields } = payload;
 
+    console.error('[EmailController] ✅ Payload extracted - inboundFieldValues keys:', Object.keys(inboundFieldValues || {}));
+    console.error('[EmailController] ✅ Payload extracted - inputFields keys:', Object.keys(inputFields || {}));
+    console.error('[EmailController] ✅ Full inboundFieldValues:', JSON.stringify(inboundFieldValues, null, 2));
+    console.error('[EmailController] ✅ Full inputFields:', JSON.stringify(inputFields, null, 2));
+
     const startTime = Date.now();
     let userId;
 
