@@ -172,11 +172,13 @@ class EmailController {
       userId = String(jwtPayload?.user_id || req.monday?.userId || payload.userId || 'unknown');
       console.log('[EmailController] userId:', userId);
 
-      // EXTRACT shortLivedToken from JWT for GraphQL API calls
-      // Monday might not send shortLivedToken - if missing, fallback to original token
-      const shortLivedToken = jwtPayload?.shortLivedToken || token;
-      console.log('[EmailController] shortLivedToken extracted:', !!jwtPayload?.shortLivedToken);
-      console.log('[EmailController] Using token for GraphQL:', shortLivedToken?.substring(0, 50) || 'NO TOKEN');
+      // For GraphQL API calls, use MONDAY_CLIENT_SECRET (not JWT token)
+      // JWT tokens are for webhook verification, not GraphQL API authentication
+      const graphqlToken = process.env.MONDAY_CLIENT_SECRET;
+      console.log('[EmailController] graphqlToken available:', !!graphqlToken);
+      if (!graphqlToken) {
+        throw new Error('MONDAY_CLIENT_SECRET not configured for GraphQL API calls');
+      }
 
       if (!userId || userId === 'unknown') {
         throw new Error('userId non trovato nel JWT');
@@ -250,7 +252,7 @@ class EmailController {
         console.log('[EmailController] → Using itemId:', itemId, 'columnId:', columnId);
         console.error('[EmailController] 🔍 CALLING fetchEmailFromColumn with itemId=' + itemId + ', columnId=' + columnId);
         try {
-          recipient_email = await fetchEmailFromColumn(itemId, columnId, shortLivedToken);
+          recipient_email = await fetchEmailFromColumn(itemId, columnId, graphqlToken);
           console.error('[EmailController] ✅ fetchEmailFromColumn returned:', recipient_email);
         } catch (graphqlErr) {
           console.error('[EmailController] ❌ fetchEmailFromColumn threw error:', graphqlErr.message);
