@@ -47,12 +47,13 @@ function savePayloadLog(payload, userId) {
 }
 
 // Helper per recuperare il valore della colonna email da Monday API tramite GraphQL
-async function fetchEmailFromColumn(itemId, columnId, userToken) {
+// Nota: Usa shortLivedToken estratto dal JWT, non il JWT intero
+async function fetchEmailFromColumn(itemId, columnId, shortLivedToken) {
   try {
     console.log('[EmailController] ========== FETCHING EMAIL FROM COLUMN ==========');
     console.log('[EmailController] itemId:', itemId);
     console.log('[EmailController] columnId:', columnId);
-    console.error('[EmailController] Using webhook token for GraphQL API');
+    console.log('[EmailController] Using shortLivedToken for GraphQL API');
 
     const query = `
       query {
@@ -74,7 +75,7 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
       { query },
       {
         headers: {
-          'Authorization': userToken,
+          'Authorization': shortLivedToken,
           'Content-Type': 'application/json'
         }
       }
@@ -166,6 +167,13 @@ class EmailController {
       userId = String(jwtPayload?.user_id || req.monday?.userId || payload.userId || 'unknown');
       console.log('[EmailController] userId:', userId);
 
+      // EXTRACT shortLivedToken from JWT for GraphQL API calls
+      const shortLivedToken = jwtPayload?.shortLivedToken;
+      console.log('[EmailController] shortLivedToken extracted:', !!shortLivedToken);
+      if (!shortLivedToken) {
+        throw new Error('shortLivedToken non trovato nel JWT payload');
+      }
+
       if (!userId || userId === 'unknown') {
         throw new Error('userId non trovato nel JWT');
       }
@@ -238,7 +246,7 @@ class EmailController {
         console.log('[EmailController] → Using itemId:', itemId, 'columnId:', columnId);
         console.error('[EmailController] 🔍 CALLING fetchEmailFromColumn with itemId=' + itemId + ', columnId=' + columnId);
         try {
-          recipient_email = await fetchEmailFromColumn(itemId, columnId, token);
+          recipient_email = await fetchEmailFromColumn(itemId, columnId, shortLivedToken);
           console.error('[EmailController] ✅ fetchEmailFromColumn returned:', recipient_email);
         } catch (graphqlErr) {
           console.error('[EmailController] ❌ fetchEmailFromColumn threw error:', graphqlErr.message);
