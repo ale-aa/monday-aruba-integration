@@ -164,12 +164,18 @@ class EmailController {
       const token = authHeader.replace('Bearer ', '');
       const jwtPayload = verifyJWT(token, process.env.MONDAY_SIGNING_SECRET);
 
+      console.log('[EmailController] ========== JWT PAYLOAD DEBUG ==========');
+      console.log('[EmailController] JWT payload keys:', Object.keys(jwtPayload));
+      console.log('[EmailController] Full JWT payload:', JSON.stringify(jwtPayload, null, 2));
+      console.log('[EmailController] ==========================================');
+
       userId = String(jwtPayload?.user_id || req.monday?.userId || payload.userId || 'unknown');
       console.log('[EmailController] userId:', userId);
 
       // EXTRACT shortLivedToken from JWT for GraphQL API calls
       const shortLivedToken = jwtPayload?.shortLivedToken;
       console.log('[EmailController] shortLivedToken extracted:', !!shortLivedToken);
+      console.log('[EmailController] shortLivedToken value:', shortLivedToken?.substring(0, 50) || 'NOT FOUND');
       if (!shortLivedToken) {
         throw new Error('shortLivedToken non trovato nel JWT payload');
       }
