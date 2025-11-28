@@ -34,27 +34,7 @@ router.post('/monday/fetchFieldDefs', verifyMonday, (req, res) => {
 
   res.status(200).json({
     kind: 'field_definitions',
-    fields: [
-      {
-        id: 'dynamic_email',
-        title: 'Email column',
-        type: 'column',
-        allowed_column_types: ['email'],
-        required: true
-      },
-      {
-        id: 'emailSubject',
-        title: 'Email Subject',
-        type: 'text',
-        required: true
-      },
-      {
-        id: 'emailBody',
-        title: 'Email Body',
-        type: 'long_text',
-        required: true
-      }
-    ]
+    fields: []
   });
 });
 

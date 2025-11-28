@@ -163,7 +163,7 @@ class EmailController {
       let recipient_email = null;
 
       // Metodo 1: Input Field approach (recipientEmail passato direttamente)
-      const recipientField = inboundFieldValues?.dynamic_email || inboundFieldValues?.recipientEmail || inputFields?.dynamic_email || inputFields?.recipientEmail;
+      const recipientField = inboundFieldValues?.recipientEmail || inputFields?.recipientEmail;
 
       console.log('[EmailController] recipientField raw value:', JSON.stringify(recipientField));
       console.log('[EmailController] recipientField type:', typeof recipientField);
