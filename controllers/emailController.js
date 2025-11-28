@@ -205,10 +205,13 @@ class EmailController {
         else {
           console.log('[EmailController] ❌ recipientField has unexpected type:', typeof recipientField);
         }
-      } else if (payload.itemId && payload.columnId) {
+      } else if (payload.itemId && (payload.columnId || inboundFieldValues?.columnId)) {
         // Metodo 2: Column ID approach (richiede GraphQL query)
+        const itemId = payload.itemId;
+        const columnId = payload.columnId || inboundFieldValues?.columnId;
         console.log('[EmailController] → Input Field not found, trying Column ID approach...');
-        recipient_email = await fetchEmailFromColumn(payload.itemId, payload.columnId, token);
+        console.log('[EmailController] → Using itemId:', itemId, 'columnId:', columnId);
+        recipient_email = await fetchEmailFromColumn(itemId, columnId, token);
       } else {
         console.log('[EmailController] ❌ recipientField is null/undefined');
         console.log('[EmailController] → Checking all inboundFieldValues for email patterns...');
@@ -243,13 +246,23 @@ class EmailController {
       console.log('[EmailController] ==========================================');
 
       // ===== ESTRAI SUBJECT E BODY =====
+      console.log('[EmailController] ========== EXTRACTING SUBJECT AND BODY ==========');
+
       // Metodo 1: Campi separati (emailSubject e emailBody)
-      let subject = inboundFieldValues?.emailSubject || inputFields?.emailSubject || 'Email da Monday.com';
-      let body = inboundFieldValues?.emailBody || inputFields?.emailBody || '';
+      let subject = inboundFieldValues?.emailSubject || inputFields?.emailSubject;
+      let body = inboundFieldValues?.emailBody || inputFields?.emailBody;
+
+      // Metodo 2: Campi direttamente nel payload (subject/body al root)
+      if (!subject) {
+        subject = payload?.subject || inboundFieldValues?.subject;
+      }
+      if (!body) {
+        body = payload?.body || inboundFieldValues?.body;
+      }
 
       // Fallback: Campo email oggetto (se presente)
       const emailObj = inboundFieldValues?.email || {};
-      if (!subject || subject === 'Email da Monday.com') {
+      if (!subject) {
         subject = emailObj.subject || 'Email da Monday.com';
       }
       if (!body) {
@@ -264,11 +277,12 @@ class EmailController {
         body = body.value || body.text || '';
       }
 
-      subject = String(subject).trim();
-      body = String(body).trim();
+      subject = String(subject || 'Email da Monday.com').trim();
+      body = String(body || '').trim();
 
       console.log('[EmailController] Subject:', subject);
       console.log('[EmailController] Body length:', body.length);
+      console.log('[EmailController] ==========================================');
 
       // ===== RECUPERA CREDENZIALI ARUBA =====
       console.log('[EmailController] ========== RETRIEVING CREDENTIALS ==========');
