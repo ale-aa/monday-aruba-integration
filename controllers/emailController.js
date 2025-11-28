@@ -167,24 +167,34 @@ class EmailController {
       console.log('[EmailController] ========== JWT PAYLOAD DEBUG ==========');
       console.log('[EmailController] JWT payload keys:', Object.keys(jwtPayload));
       console.log('[EmailController] Full JWT payload:', JSON.stringify(jwtPayload, null, 2));
-      console.log('[EmailController] Looking for API token or oauth_token in payload...');
-      console.log('[EmailController] - shortLivedToken:', jwtPayload?.shortLivedToken ? 'EXISTS' : 'NOT FOUND');
-      console.log('[EmailController] - api_token:', jwtPayload?.api_token ? 'EXISTS' : 'NOT FOUND');
-      console.log('[EmailController] - oauth_token:', jwtPayload?.oauth_token ? 'EXISTS' : 'NOT FOUND');
-      console.log('[EmailController] - token:', jwtPayload?.token ? 'EXISTS' : 'NOT FOUND');
+
+      // Extract short-lived token from JWT payload (dat.shortLivedToken)
+      // According to monday.com documentation, the short-lived token is in dat.shortLivedToken
+      const shortLivedToken = jwtPayload?.dat?.shortLivedToken;
+      console.log('[EmailController] shortLivedToken found:', !!shortLivedToken);
+      if (shortLivedToken) {
+        console.log('[EmailController] ✓ Successfully extracted shortLivedToken from dat.shortLivedToken');
+      } else {
+        console.log('[EmailController] ❌ shortLivedToken NOT found in dat.shortLivedToken');
+        console.log('[EmailController] Looking for alternative tokens...');
+        console.log('[EmailController] - jwtPayload.shortLivedToken:', jwtPayload?.shortLivedToken ? 'EXISTS' : 'NOT FOUND');
+        console.log('[EmailController] - jwtPayload.api_token:', jwtPayload?.api_token ? 'EXISTS' : 'NOT FOUND');
+      }
       console.log('[EmailController] ==========================================');
 
       userId = String(jwtPayload?.user_id || req.monday?.userId || payload.userId || 'unknown');
       console.log('[EmailController] userId:', userId);
 
-      // For GraphQL API calls in webhook context, use the JWT token directly
-      // The JWT token contains user context needed for GraphQL queries
-      const graphqlToken = token;  // Use the JWT token from Authorization header
-      console.log('[EmailController] Using JWT token for GraphQL API calls');
-      console.log('[EmailController] graphqlToken available:', !!graphqlToken);
+      // For GraphQL API calls, use the short-lived token from the JWT payload
+      // This is the recommended method according to monday.com documentation
+      const graphqlToken = shortLivedToken || token;  // Fallback to full token if shortLivedToken not found
+
       if (!graphqlToken) {
-        throw new Error('JWT token required for GraphQL API calls');
+        throw new Error('No authentication token available for GraphQL API calls');
       }
+
+      console.log('[EmailController] Using token for GraphQL API calls');
+      console.log('[EmailController] Token type:', shortLivedToken ? 'short-lived' : 'jwt-token');
 
       if (!userId || userId === 'unknown') {
         throw new Error('userId non trovato nel JWT');
