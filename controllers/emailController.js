@@ -167,6 +167,11 @@ class EmailController {
       console.log('[EmailController] ========== JWT PAYLOAD DEBUG ==========');
       console.log('[EmailController] JWT payload keys:', Object.keys(jwtPayload));
       console.log('[EmailController] Full JWT payload:', JSON.stringify(jwtPayload, null, 2));
+      console.log('[EmailController] Looking for API token or oauth_token in payload...');
+      console.log('[EmailController] - shortLivedToken:', jwtPayload?.shortLivedToken ? 'EXISTS' : 'NOT FOUND');
+      console.log('[EmailController] - api_token:', jwtPayload?.api_token ? 'EXISTS' : 'NOT FOUND');
+      console.log('[EmailController] - oauth_token:', jwtPayload?.oauth_token ? 'EXISTS' : 'NOT FOUND');
+      console.log('[EmailController] - token:', jwtPayload?.token ? 'EXISTS' : 'NOT FOUND');
       console.log('[EmailController] ==========================================');
 
       userId = String(jwtPayload?.user_id || req.monday?.userId || payload.userId || 'unknown');
