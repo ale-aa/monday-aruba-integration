@@ -230,9 +230,9 @@ class EmailController {
         else {
           console.log('[EmailController] ❌ recipientField has unexpected type:', typeof recipientField);
         }
-      } else if (payload.itemId && (payload.columnId || inboundFieldValues?.columnId)) {
+      } else if ((payload.itemId || inboundFieldValues?.itemId) && (payload.columnId || inboundFieldValues?.columnId)) {
         // Metodo 2: Column ID approach (richiede GraphQL query)
-        const itemId = payload.itemId;
+        const itemId = payload.itemId || inboundFieldValues?.itemId;
         const columnId = payload.columnId || inboundFieldValues?.columnId;
         console.log('[EmailController] → Input Field not found, trying Column ID approach...');
         console.log('[EmailController] → Using itemId:', itemId, 'columnId:', columnId);
