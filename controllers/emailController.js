@@ -52,6 +52,7 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
     console.log('[EmailController] ========== FETCHING EMAIL FROM COLUMN ==========');
     console.log('[EmailController] itemId:', itemId);
     console.log('[EmailController] columnId:', columnId);
+    console.log('[EmailController] userToken prefix:', userToken ? userToken.substring(0, 20) + '...' : 'undefined');
 
     const query = `
       query {
@@ -67,6 +68,8 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
       }
     `;
 
+    console.log('[EmailController] GraphQL Query:', query);
+
     const response = await axios.post('https://api.monday.com/graphql',
       { query },
       {
@@ -77,9 +80,20 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
       }
     );
 
+    console.log('[EmailController] GraphQL Response status:', response.status);
+    console.log('[EmailController] GraphQL Response data:', JSON.stringify(response.data, null, 2));
+
+    // Check for GraphQL errors
+    if (response.data?.errors) {
+      console.error('[EmailController] ❌ GraphQL Errors:', response.data.errors);
+      throw new Error(`GraphQL Error: ${response.data.errors.map(e => e.message).join(', ')}`);
+    }
+
     const columnValues = response.data?.data?.items?.[0]?.column_values;
+    console.log('[EmailController] columnValues:', JSON.stringify(columnValues, null, 2));
+
     if (!columnValues || columnValues.length === 0) {
-      throw new Error(`Colonna email non trovata per itemId: ${itemId}`);
+      throw new Error(`Colonna email non trovata per itemId: ${itemId}, columnId: ${columnId}`);
     }
 
     const emailField = columnValues[0];
@@ -92,6 +106,7 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
     return email;
   } catch (err) {
     console.error('[EmailController] ❌ Error fetching email from column:', err.message);
+    console.error('[EmailController] Full error:', err);
     throw new Error(`Errore nel recupero email dalla colonna: ${err.message}`);
   }
 }
