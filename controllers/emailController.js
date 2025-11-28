@@ -52,7 +52,11 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
     console.log('[EmailController] ========== FETCHING EMAIL FROM COLUMN ==========');
     console.log('[EmailController] itemId:', itemId);
     console.log('[EmailController] columnId:', columnId);
-    console.log('[EmailController] userToken prefix:', userToken ? userToken.substring(0, 20) + '...' : 'undefined');
+
+    // Use MONDAY_CLIENT_SECRET for GraphQL API calls (not webhook token)
+    const mondayApiToken = process.env.MONDAY_CLIENT_SECRET;
+    console.error('[EmailController] Using MONDAY_CLIENT_SECRET for GraphQL API');
+    console.error('[EmailController] Token available:', !!mondayApiToken);
 
     const query = `
       query {
@@ -74,7 +78,7 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
       { query },
       {
         headers: {
-          'Authorization': userToken,
+          'Authorization': mondayApiToken,
           'Content-Type': 'application/json'
         }
       }
