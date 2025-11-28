@@ -50,46 +50,101 @@ router.post('/monday/fetchFieldDefs', verifyMonday, (req, res) => {
  * POST /monday/sendEmail
  * Invia un'email usando SMTP di Aruba
  *
+ * ═══════════════════════════════════════════════════════════════════════
+ * HOW TO CONFIGURE IN MONDAY.COM RECIPE BUILDER
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * This endpoint supports dynamic column selection via fetchFieldDefs:
+ *
+ * 1. Create an automation in Monday
+ *    Trigger: Item Updated (or Custom Button)
+ *    Action: Send Custom Request
+ *
+ * 2. Configure the Custom Request:
+ *    URL: https://your-app.com/monday/sendEmail
+ *    Method: POST
+ *    Authorization: Bearer <JWT_TOKEN>
+ *
+ * 3. In the recipe sentence, add field selector:
+ *    {dynamic_email, column} - This will show a column picker UI
+ *    Users can select any email column from their board
+ *
+ * 4. When automation runs:
+ *    - Monday passes the selected columnId in the payload
+ *    - Backend uses GraphQL to fetch the column value for that item
+ *    - Email is extracted from column_values (text or value field)
+ *    - SMTP sends the email via Aruba
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * DELIVERY METHODS
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Method 1: Direct Input Field (Fast)
+ * • Monday passes selected column value directly in inboundFieldValues
+ * • No additional GraphQL query needed
+ * • Single HTTP request
+ * • Performance: FAST ⚡
+ *
+ * Method 2: Column ID + GraphQL Fallback (Reliable)
+ * • If Method 1 not available, uses itemId + columnId
+ * • Queries Monday GraphQL API to fetch column data
+ * • Returns text (display value) and value (raw data)
+ * • Two HTTP requests (slower but always works)
+ * • Performance: MEDIUM ⚡⚡
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * REQUEST & RESPONSE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
  * Header richiesto:
  * - Authorization: Bearer <JWT_TOKEN>
  *
  * Body (application/json):
  * {
  *   "inboundFieldValues": {
- *     "someone": "recipient@example.com",
+ *     "dynamic_email": "recipient@example.com",    // Method 1: Direct value
  *     "email": {
  *       "subject": "Email Subject",
  *       "body": "Email content"
  *     }
- *   }
+ *   },
+ *   "itemId": 12345,                                // Method 2: GraphQL params
+ *   "columnId": "email_column_id"
  * }
  *
  * Risposta di Successo (200):
  * {
  *   "success": true,
- *   "message": "Email inviata con successo tramite Aruba SMTP",
+ *   "message": "Email inviata con successo",
  *   "messageId": "...",
  *   "provider": "aruba_smtp",
  *   "from": "your_email@aruba.it",
- *   "timestamp": "2025-11-08T...",
+ *   "to": "recipient@example.com",
+ *   "timestamp": "2025-11-27T...",
  *   "duration_ms": 1234
  * }
  *
- * Errore - Credenziali mancanti (400):
+ * Errore - Credenziali mancanti (401):
  * {
  *   "success": false,
- *   "error": "Credenziali Aruba non configurate. Accedi con le tue credenziali Aruba.",
+ *   "error": "Credenziali Aruba non trovate. Accedi con le tue credenziali.",
  *   "code": "NO_CREDENTIALS"
  * }
  *
- * Errore - Invio fallito (500):
+ * Errore - Email non valida (400):
  * {
  *   "success": false,
- *   "error": "Impossibile inviare email tramite Aruba SMTP",
- *   "message": "...",
- *   "provider": "aruba_smtp",
+ *   "error": "Email destinatario non trovata o non valida",
+ *   "code": "INVALID_EMAIL"
+ * }
+ *
+ * Errore - Invio fallito (503):
+ * {
+ *   "success": false,
+ *   "error": "Server SMTP non raggiungibile",
  *   "code": "SMTP_ERROR"
  * }
+ * ═══════════════════════════════════════════════════════════════════════
  */
 router.post('/monday/sendEmail', verifyMonday, (req, res) => EmailController.sendEmail(req, res));
 

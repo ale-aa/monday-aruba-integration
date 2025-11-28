@@ -55,12 +55,13 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
 
     const query = `
       query {
-        items(ids: ${itemId}) {
+        items(ids: [${itemId}]) {
           id
-          column_values(ids: "${columnId}") {
+          column_values(ids: ["${columnId}"]) {
             id
             text
             value
+            type
           }
         }
       }
@@ -85,6 +86,7 @@ async function fetchEmailFromColumn(itemId, columnId, userToken) {
     const email = emailField.text || emailField.value;
 
     console.log('[EmailController] ✓ Email retrieved from column:', email);
+    console.log('[EmailController] Column type:', emailField.type);
     console.log('[EmailController] ==========================================');
 
     return email;
