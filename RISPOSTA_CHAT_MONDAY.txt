@@ -1,0 +1,102 @@
+---
+RISPOSTA AL TECNICO MONDAY.COM
+Data: 27 Novembre 2025
+Argomento: Email Column - Metodo di estrazione email con etichette
+---
+
+Grazie mille per le linee guida dettagliate sui metodi di estrazione email dalle colonne in Monday.
+
+Abbiamo analizzato la nostra implementazione e confermato che utilizziamo un approccio ibrido che allinea perfettamente con la tua documentazione:
+
+---
+
+✅ METODO 1: INPUT FIELD (Primario - Consigliato)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+La nostra Monday recipe trasmette il valore della email column direttamente come Input Field nel payload.
+
+Vantaggi:
+• 1 sola richiesta HTTP
+• No query GraphQL aggiuntive
+• Supporta nativamente etichette di colonna
+• Migliore performance
+
+Codice di estrazione: controllers/emailController.js (linee 164-201)
+- Gestisce formato stringa diretta
+- Gestisce formato oggetto con fallback (email → text → value)
+- Valida il risultato finale
+
+
+✅ METODO 2: COLUMN ID + GraphQL (Fallback)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Se l'Input Field non è disponibile, usiamo itemId + columnId per queryare via GraphQL e accedere ai campi raw della colonna.
+
+Query:
+{
+  items(ids: [itemId]) {
+    column_values(ids: "columnId") {
+      ... on EmailValue {
+        email
+        label
+      }
+    }
+  }
+}
+
+Codice di estrazione: controllers/emailController.js (linee 50-95)
+- Accesso a email e label separatamente
+- Estrae il valore effettivo per l'invio
+
+---
+
+❓ DOMANDA CRITICA PER VALIDAZIONE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Per assicurarci di implementare correttamente il supporto alle email columns con etichette, abbiamo bisogno di un chiarimento:
+
+Quando una email column viene trasmessa via Input Field nel payload della automation, quale valore riceviamo?
+
+Scenario: Column email con item che ha:
+├─ Etichetta: "Work email"
+└─ Email: "alice@company.com"
+
+Quando Monday invia il payload, nel campo recipientEmail riceviamo:
+
+A) Solo l'email: "alice@company.com"
+B) Solo l'etichetta: "Work email"
+C) Oggetto: { label: "Work email", email: "alice@company.com" }
+D) Formato diverso (specificare)
+
+
+🔍 COME VERIFICHIAMO
+━━━━━━━━━━━━━━━━━━━
+
+Abbiamo un endpoint di debug:
+GET /debug/email-payloads
+
+Questo mostra esattamente cosa Monday invia. Una volta che rispondi, faremo un test per validare il nostro parsing.
+
+
+✅ STATUS IMPLEMENTAZIONE
+━━━━━━━━━━━━━━━━━━━
+
+[✓] Input Field extraction - Implementato
+[✓] GraphQL Email query - Implementato
+[✓] Parsing etichette - Pronto per conferma
+[✓] Logging completo - Implementato
+[✓] SMTP Aruba - Funzionante
+
+Una volta che rispondi al nostro chiarimento, procederemo con:
+1. Test di integrazione con Monday recipe
+2. Validazione finale del parsing
+3. Documentazione completa per il tuo caso d'uso
+
+Rimaniamo in attesa! 🚀
+
+---
+
+Per approfondimenti tecnici completi, vedi: RISPOSTA_TECNICO_MONDAY.md
+
+---
+

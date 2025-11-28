@@ -55,6 +55,12 @@ Built with:
 - Email subject and body validation
 - SMTP configuration testing
 
+✅ **Dual Email Extraction Approaches**
+- **Input Field Method**: Email value passed directly in payload
+- **Column ID Method**: GraphQL queries to fetch email from Monday item columns
+- Automatic fallback between approaches
+- Compatible with Monday.com's itemColumnValues and columnId payloads
+
 ✅ **Authorization Flow**
 - HTML form-based credential configuration
 - Automatic encryption before storage
@@ -398,23 +404,44 @@ Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Request Body (Two Approaches):**
+
+**Approach A: Input Field (Direct Email Value)**
 ```json
 {
-  "recipient_email": "user@example.com",
-  "subject": "Test Email",
-  "body": "Email content",
-  "cc": ["cc1@example.com", "cc2@example.com"],
-  "bcc": "bcc@example.com"
+  "inboundFieldValues": {
+    "recipientEmail": "user@example.com",
+    "email": {
+      "subject": "Test Email",
+      "body": "Email content"
+    }
+  }
+}
+```
+
+**Approach B: Column ID (GraphQL Query)**
+```json
+{
+  "inboundFieldValues": {
+    "columnId": "email_column_id"
+  },
+  "itemId": 12345
 }
 ```
 
 **Parameters:**
-- `recipient_email` (required) - Email address
-- `subject` (required) - Max 998 characters
-- `body` (required) - Text or JSON object
-- `cc` (optional) - String or array
-- `bcc` (optional) - String or array
+
+*Approach A - Input Field:*
+- `recipientEmail` (required) - Email address passed directly
+- `email.subject` (required) - Max 998 characters
+- `email.body` (required) - Text or JSON object
+- `email.cc` (optional) - String or array
+- `email.bcc` (optional) - String or array
+
+*Approach B - Column ID:*
+- `columnId` (required) - Monday column ID containing the email
+- `itemId` (required) - Monday item ID to query
+- Automatically queries Monday API via GraphQL to fetch email value
 
 **Response (200):**
 ```json
@@ -697,6 +724,43 @@ npm start
 1. Call `GET /monday/authorize` to show form
 2. Submit credentials via `POST /monday/save-credentials`
 3. Verify with `POST /monday/testSMTP`
+
+### Monday.com Column ID Approach Not Working
+
+**Issue:** Automation stays in Pending or email is not sent when using Column ID approach
+
+**Debugging Steps:**
+
+1. **Check if itemId is being passed**
+   - Examine server logs for:
+   ```
+   [EmailController] Available fields in inboundFieldValues: [...]
+   [EmailController] Searching for itemId...
+   [EmailController] payload.itemId: ...
+   ```
+
+2. **If itemId is undefined:**
+   - Configure Monday automation to pass `itemId` as input field
+   - Monday should automatically provide it from the trigger context
+   - Ensure the action block is configured to receive item data
+
+3. **If columnId is provided but email extraction fails:**
+   - Check Monday API credentials in JWT token
+   - Verify columnId format is correct (should be a string like "email" or "column_123")
+   - Ensure Aruba credentials are properly configured (use `/monday/testSMTP`)
+
+4. **Review logs for GraphQL query errors:**
+   - Look for:
+   ```
+   [EmailController] ========== FETCHING EMAIL FROM COLUMN ==========
+   [EmailController] ✓ Email retrieved from column: user@example.com
+   ```
+   - If GraphQL fails, error message will show the Monday API issue
+
+5. **Fallback to Input Field approach:**
+   - If Column ID approach doesn't work, map email directly via Input Field
+   - Configure Monday to pass `recipientEmail` as an input field with email value
+   - Simpler, more reliable, no GraphQL queries needed
 
 ### "Autenticazione SMTP fallita" Error
 

@@ -41,6 +41,12 @@ router.post('/monday/fetchFieldDefs', verifyMonday, (req, res) => {
         type: 'column',
         allowed_column_types: ['email'],
         required: true
+      },
+      {
+        id: 'email',
+        title: 'Email Content (Subject + Body)',
+        type: 'long_text',
+        required: true
       }
     ]
   });
