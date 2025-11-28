@@ -75,7 +75,7 @@ async function fetchEmailFromColumn(itemId, columnId, graphqlToken) {
       { query },
       {
         headers: {
-          'Authorization': graphqlToken,  // JWT token from webhook
+          'Authorization': `Bearer ${graphqlToken}`,  // JWT token from webhook with Bearer prefix
           'Content-Type': 'application/json'
         }
       }
