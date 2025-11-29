@@ -71,17 +71,19 @@ async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
       const decoded = jwt.decode(cleanToken);
 
       console.log('[EmailController] 📦 JWT Decodificato - Keys:', Object.keys(decoded || {}));
-      console.log('[EmailController] 📦 JWT.dat - Keys:', Object.keys(decoded?.dat || {}));
+      console.log('[EmailController] 📦 JWT ha shortLivedToken?', !!decoded?.shortLivedToken);
 
-      // ESTRAI il shortLivedToken dal campo "dat"
-      if (decoded && decoded.dat && decoded.dat.shortLivedToken) {
-        shortLivedToken = decoded.dat.shortLivedToken;
+      // ESTRAI il shortLivedToken - È AL PRIMO LIVELLO del JWT, NON in dat
+      if (decoded && decoded.shortLivedToken) {
+        shortLivedToken = decoded.shortLivedToken;
         console.log('[EmailController] ✅ SHORT-LIVED TOKEN ESTRATTO!');
         console.log('[EmailController] 🔑 Token estratto (lunghezza):', shortLivedToken.length);
+        console.log('[EmailController] 🔑 Token estratto (primi 50 char):', shortLivedToken.substring(0, 50));
       } else {
-        console.error('[EmailController] ❌ ERRORE: shortLivedToken NON trovato in dat!');
-        console.error('[EmailController] ❌ Struttura JWT ricevuta:', JSON.stringify(decoded, null, 2));
-        throw new Error('shortLivedToken non presente in dat.shortLivedToken');
+        console.error('[EmailController] ❌ ERRORE: shortLivedToken NON trovato nel JWT!');
+        console.error('[EmailController] ❌ Keys presenti nel JWT:', Object.keys(decoded || {}));
+        console.error('[EmailController] ❌ Struttura JWT completa:', JSON.stringify(decoded, null, 2));
+        throw new Error('shortLivedToken non presente nel JWT payload');
       }
     } catch (decodeError) {
       console.error('[EmailController] ❌ ERRORE nella decodifica JWT:', decodeError.message);
