@@ -46,15 +46,51 @@ function savePayloadLog(payload, userId) {
   }
 }
 
-// Helper per recuperare il valore della colonna email da Monday API tramite GraphQL
-// Usa il JWT token dal webhook per autenticarsi con Monday GraphQL API
-async function fetchEmailFromColumn(itemId, columnId, graphqlToken) {
+// Helper per recuperare il valore della colonna email da Monday API
+// Estrae il shortLivedToken dal JWT e lo usa per l'autenticazione
+async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
+  const jwt = require('jsonwebtoken');
+
   try {
     console.log('[EmailController] ========== FETCHING EMAIL FROM COLUMN ==========');
     console.log('[EmailController] itemId:', itemId);
     console.log('[EmailController] columnId:', columnId);
-    console.log('[EmailController] Using JWT token for GraphQL API');
 
+    // ========================================
+    // STEP 1: ESTRAI IL SHORT-LIVED TOKEN DAL JWT
+    // ========================================
+    console.log('[EmailController] 🔐 Inizio estrazione shortLivedToken dal JWT...');
+
+    let shortLivedToken;
+    try {
+      // Rimuovi "Bearer " se presente
+      const cleanToken = jwtToken.replace(/^Bearer\s+/i, '');
+      console.log('[EmailController] 🧹 Token pulito (lunghezza):', cleanToken.length);
+
+      // Decodifica il JWT (SENZA verifica - monday.com lo ha già firmato)
+      const decoded = jwt.decode(cleanToken);
+
+      console.log('[EmailController] 📦 JWT Decodificato - Keys:', Object.keys(decoded || {}));
+      console.log('[EmailController] 📦 JWT.dat - Keys:', Object.keys(decoded?.dat || {}));
+
+      // ESTRAI il shortLivedToken dal campo "dat"
+      if (decoded && decoded.dat && decoded.dat.shortLivedToken) {
+        shortLivedToken = decoded.dat.shortLivedToken;
+        console.log('[EmailController] ✅ SHORT-LIVED TOKEN ESTRATTO!');
+        console.log('[EmailController] 🔑 Token estratto (lunghezza):', shortLivedToken.length);
+      } else {
+        console.error('[EmailController] ❌ ERRORE: shortLivedToken NON trovato in dat!');
+        console.error('[EmailController] ❌ Struttura JWT ricevuta:', JSON.stringify(decoded, null, 2));
+        throw new Error('shortLivedToken non presente in dat.shortLivedToken');
+      }
+    } catch (decodeError) {
+      console.error('[EmailController] ❌ ERRORE nella decodifica JWT:', decodeError.message);
+      throw new Error(`Errore nell'estrazione del shortLivedToken: ${decodeError.message}`);
+    }
+
+    // ========================================
+    // STEP 2: COSTRUISCI LA QUERY GRAPHQL
+    // ========================================
     const query = `
       query {
         items(ids: [${itemId}]) {
@@ -69,29 +105,36 @@ async function fetchEmailFromColumn(itemId, columnId, graphqlToken) {
       }
     `;
 
-    console.log('[EmailController] GraphQL Query:', query);
+    console.log('[EmailController] 📝 GraphQL Query:', query.replace(/\s+/g, ' ').trim());
+
+    // ========================================
+    // STEP 3: CHIAMA L'API MONDAY.COM CON SHORT-LIVED TOKEN
+    // ========================================
+    console.log('[EmailController] 🚀 Invio richiesta a monday.com API...');
+    console.log('[EmailController] 🔑 Authorization header: Bearer <shortLivedToken>');
 
     const response = await axios.post('https://api.monday.com/graphql',
       { query },
       {
         headers: {
-          'Authorization': `Bearer ${graphqlToken}`,  // JWT token from webhook with Bearer prefix
+          'Authorization': `Bearer ${shortLivedToken}`,  // USA IL SHORT-LIVED TOKEN
           'Content-Type': 'application/json'
         }
       }
     );
 
-    console.log('[EmailController] GraphQL Response status:', response.status);
-    console.log('[EmailController] GraphQL Response data:', JSON.stringify(response.data, null, 2));
+    console.log('[EmailController] ✅ Risposta ricevuta!');
+    console.log('[EmailController] 📊 Status:', response.status);
+    console.log('[EmailController] 📦 Response data:', JSON.stringify(response.data, null, 2));
 
-    // Check for GraphQL errors
+    // Verifica errori GraphQL
     if (response.data?.errors) {
       console.error('[EmailController] ❌ GraphQL Errors:', response.data.errors);
       throw new Error(`GraphQL Error: ${response.data.errors.map(e => e.message).join(', ')}`);
     }
 
     const columnValues = response.data?.data?.items?.[0]?.column_values;
-    console.log('[EmailController] columnValues:', JSON.stringify(columnValues, null, 2));
+    console.log('[EmailController] 📋 columnValues:', JSON.stringify(columnValues, null, 2));
 
     if (!columnValues || columnValues.length === 0) {
       throw new Error(`Colonna email non trovata per itemId: ${itemId}, columnId: ${columnId}`);
@@ -100,7 +143,7 @@ async function fetchEmailFromColumn(itemId, columnId, graphqlToken) {
     const emailField = columnValues[0];
     const email = emailField.text || emailField.value;
 
-    console.log('[EmailController] ✓ Email retrieved from column:', email);
+    console.log('[EmailController] 📧 ✅ EMAIL ESTRATTA:', email);
     console.log('[EmailController] Column type:', emailField.type);
     console.log('[EmailController] ==========================================');
 
