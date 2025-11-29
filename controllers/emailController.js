@@ -121,7 +121,7 @@ async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
       { query },
       {
         headers: {
-          'Authorization': `Bearer ${shortLivedToken}`,  // USA IL SHORT-LIVED TOKEN
+          'Authorization': shortLivedToken,  // ← Pass token WITHOUT "Bearer " prefix
           'Content-Type': 'application/json'
         }
       }
