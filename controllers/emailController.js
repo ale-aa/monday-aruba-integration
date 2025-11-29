@@ -129,11 +129,11 @@ async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
     console.log('[EmailController] 🔑 apiToken (lunghezza):', apiToken?.length);
     console.log('[EmailController] 🔑 apiToken (primi 50 char):', apiToken?.substring(0, 50));
 
-    const response = await axios.post('https://api.monday.com/graphql',
+    const response = await axios.post('https://api.monday.com/v2',
       { query },
       {
         headers: {
-          'Authorization': apiToken,  // ← Usa il token API estratto dal JWT nidificato
+          'Authorization': apiToken,  // ← Usa il token API estratto dal JWT
           'Content-Type': 'application/json'
         }
       }
