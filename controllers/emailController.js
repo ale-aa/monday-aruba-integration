@@ -113,7 +113,9 @@ async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
     // STEP 3: CHIAMA L'API MONDAY.COM CON SHORT-LIVED TOKEN
     // ========================================
     console.log('[EmailController] 🚀 Invio richiesta a monday.com API...');
-    console.log('[EmailController] 🔑 Authorization header: Bearer <shortLivedToken>');
+    console.log('[EmailController] 🔑 shortLivedToken estratto (lunghezza):', shortLivedToken?.length);
+    console.log('[EmailController] 🔑 shortLivedToken estratto (primi 50 char):', shortLivedToken?.substring(0, 50));
+    console.log('[EmailController] 🔑 shortLivedToken estratto (ultimi 20 char):', shortLivedToken?.substring(shortLivedToken.length - 20));
 
     const response = await axios.post('https://api.monday.com/graphql',
       { query },
