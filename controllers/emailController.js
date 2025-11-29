@@ -57,37 +57,68 @@ async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
     console.log('[EmailController] columnId:', columnId);
 
     // ========================================
-    // STEP 1: ESTRAI IL SHORT-LIVED TOKEN DAL JWT
+    // STEP 1: ESTRAI IL TOKEN API (NESTED JWT)
     // ========================================
-    console.log('[EmailController] 🔐 Inizio estrazione shortLivedToken dal JWT...');
+    let apiToken;
 
-    let shortLivedToken;
     try {
-      // Rimuovi "Bearer " se presente
-      const cleanToken = jwtToken.replace(/^Bearer\s+/i, '');
-      console.log('[EmailController] 🧹 Token pulito (lunghezza):', cleanToken.length);
+      console.log('[EmailController] 🔐 Inizio estrazione token (nested JWT)...');
 
-      // Decodifica il JWT (SENZA verifica - monday.com lo ha già firmato)
+      // 1. Pulisci il JWT esterno
+      const cleanToken = jwtToken.replace(/^Bearer\s+/i, '');
+      console.log('[EmailController] JWT esterno (primi 50 char):', cleanToken.substring(0, 50));
+
+      // 2. Decodifica il JWT esterno
       const decoded = jwt.decode(cleanToken);
 
-      console.log('[EmailController] 📦 JWT Decodificato - Keys:', Object.keys(decoded || {}));
-      console.log('[EmailController] 📦 JWT ha shortLivedToken?', !!decoded?.shortLivedToken);
-
-      // ESTRAI il shortLivedToken - È AL PRIMO LIVELLO del JWT, NON in dat
-      if (decoded && decoded.shortLivedToken) {
-        shortLivedToken = decoded.shortLivedToken;
-        console.log('[EmailController] ✅ SHORT-LIVED TOKEN ESTRATTO!');
-        console.log('[EmailController] 🔑 Token estratto (lunghezza):', shortLivedToken.length);
-        console.log('[EmailController] 🔑 Token estratto (primi 50 char):', shortLivedToken.substring(0, 50));
-      } else {
-        console.error('[EmailController] ❌ ERRORE: shortLivedToken NON trovato nel JWT!');
-        console.error('[EmailController] ❌ Keys presenti nel JWT:', Object.keys(decoded || {}));
-        console.error('[EmailController] ❌ Struttura JWT completa:', JSON.stringify(decoded, null, 2));
-        throw new Error('shortLivedToken non presente nel JWT payload');
+      if (!decoded) {
+        throw new Error('JWT decode fallito');
       }
-    } catch (decodeError) {
-      console.error('[EmailController] ❌ ERRORE nella decodifica JWT:', decodeError.message);
-      throw new Error(`Errore nell'estrazione del shortLivedToken: ${decodeError.message}`);
+
+      console.log('[EmailController] JWT esterno keys:', Object.keys(decoded));
+      console.log('[EmailController] JWT esterno completo:', JSON.stringify(decoded, null, 2));
+
+      // 3. Estrai il shortLivedToken (che è un JWT nidificato)
+      if (!decoded.shortLivedToken) {
+        throw new Error('shortLivedToken non presente nel JWT esterno');
+      }
+
+      const nestedJWT = decoded.shortLivedToken;
+      console.log('[EmailController] JWT nidificato (primi 50 char):', nestedJWT.substring(0, 50));
+      console.log('[EmailController] JWT nidificato è un JWT?', nestedJWT.startsWith('eyJ'));
+
+      // 4. DECODIFICA IL JWT NIDIFICATO
+      const nestedDecoded = jwt.decode(nestedJWT);
+
+      if (!nestedDecoded) {
+        throw new Error('Nested JWT decode fallito');
+      }
+
+      console.log('[EmailController] JWT nidificato keys:', Object.keys(nestedDecoded));
+      console.log('[EmailController] JWT nidificato completo:', JSON.stringify(nestedDecoded, null, 2));
+
+      // 5. ESTRAI IL TOKEN API FINALE
+      // Potrebbe essere in nestedDecoded.dat.shortLivedToken OPPURE nestedDecoded.shortLivedToken
+      if (nestedDecoded.dat && nestedDecoded.dat.shortLivedToken) {
+        apiToken = nestedDecoded.dat.shortLivedToken;
+        console.log('[EmailController] ✅ Token API estratto da dat.shortLivedToken');
+      } else if (nestedDecoded.shortLivedToken) {
+        apiToken = nestedDecoded.shortLivedToken;
+        console.log('[EmailController] ✅ Token API estratto da shortLivedToken');
+      } else {
+        // Fallback: usa il JWT nidificato stesso
+        apiToken = nestedJWT;
+        console.log('[EmailController] ⚠️ Usando JWT nidificato come token API');
+      }
+
+      console.log('[EmailController] 🔑 Token API finale (primi 50 char):', apiToken.substring(0, 50));
+      console.log('[EmailController] 🔑 Token lunghezza:', apiToken.length);
+      console.log('[EmailController] 🔑 Inizia con "eyJ"?', apiToken.startsWith('eyJ'));
+
+    } catch (error) {
+      console.error('[EmailController] ❌ Errore estrazione token:', error.message);
+      console.error('[EmailController] ❌ Stack:', error.stack);
+      throw error;
     }
 
     // ========================================
@@ -113,15 +144,14 @@ async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
     // STEP 3: CHIAMA L'API MONDAY.COM CON SHORT-LIVED TOKEN
     // ========================================
     console.log('[EmailController] 🚀 Invio richiesta a monday.com API...');
-    console.log('[EmailController] 🔑 shortLivedToken estratto (lunghezza):', shortLivedToken?.length);
-    console.log('[EmailController] 🔑 shortLivedToken estratto (primi 50 char):', shortLivedToken?.substring(0, 50));
-    console.log('[EmailController] 🔑 shortLivedToken estratto (ultimi 20 char):', shortLivedToken?.substring(shortLivedToken.length - 20));
+    console.log('[EmailController] 🔑 apiToken (lunghezza):', apiToken?.length);
+    console.log('[EmailController] 🔑 apiToken (primi 50 char):', apiToken?.substring(0, 50));
 
     const response = await axios.post('https://api.monday.com/graphql',
       { query },
       {
         headers: {
-          'Authorization': shortLivedToken,  // ← Pass token WITHOUT "Bearer " prefix
+          'Authorization': apiToken,  // ← Usa il token API estratto dal JWT nidificato
           'Content-Type': 'application/json'
         }
       }
