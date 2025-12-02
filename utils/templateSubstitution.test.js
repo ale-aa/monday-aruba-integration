@@ -303,6 +303,97 @@ assert(
   'Should handle suffix matching or leave placeholder'
 );
 
+// ========== TEST 21: {board.columnId} prefix ==========
+console.log(`\n${colors.yellow}Test 21: {board.columnId} prefix${colors.reset}`);
+const result21 = substituteTemplate(
+  'Status: {board.status}',
+  { status: { label: 'Active', index: 1 } }
+);
+assertEquals(
+  result21,
+  'Status: Active',
+  'Should handle {board.} prefix like {pulse.}'
+);
+
+// ========== TEST 22: {user.columnId} prefix ==========
+console.log(`\n${colors.yellow}Test 22: {user.columnId} prefix${colors.reset}`);
+const result22 = substituteTemplate(
+  'User: {user.name}, Email: {user.email_abc123}',
+  { name: 'Alice', email_abc123: '[email protected]' }
+);
+assertEquals(
+  result22,
+  'User: Alice, Email: [email protected]',
+  'Should handle multiple {user.} prefixes'
+);
+
+// ========== TEST 23: {group.columnId} and {person.columnId} ==========
+console.log(`\n${colors.yellow}Test 23: {group.} and {person.} prefixes${colors.reset}`);
+const result23 = substituteTemplate(
+  'Group: {group.team_name}, Person: {person.full_name}',
+  { team_name: 'Engineering', full_name: 'John Doe' }
+);
+assertEquals(
+  result23,
+  'Group: Engineering, Person: John Doe',
+  'Should handle {group.} and {person.} prefixes'
+);
+
+// ========== TEST 24: Direct {columnId} without prefix ==========
+console.log(`\n${colors.yellow}Test 24: Direct {columnId} without prefix${colors.reset}`);
+const result24 = substituteTemplate(
+  'Name: {name}, Email: {email}',
+  { name: 'Mario', email: '[email protected]' }
+);
+assertEquals(
+  result24,
+  'Name: Mario, Email: [email protected]',
+  'Should handle direct {columnId} without prefix'
+);
+
+// ========== TEST 25: Mixed all three patterns ==========
+console.log(`\n${colors.yellow}Test 25: Mixed all three patterns{{}} {prefix.} and {direct}${colors.reset}`);
+const result25 = substituteTemplate(
+  '{{greeting}} {pulse.name}, email: {direct_email}',
+  { greeting: 'Hello', name: 'Mario', direct_email: '[email protected]' }
+);
+assertEquals(
+  result25,
+  'Hello Mario, email: [email protected]',
+  'Should handle mixed {{}} {prefix.} and {direct} patterns'
+);
+
+// ========== TEST 26: Complex column IDs with numbers and underscores ==========
+console.log(`\n${colors.yellow}Test 26: Complex column IDs with numbers and underscores${colors.reset}`);
+const result26 = substituteTemplate(
+  'Date: {pulse.date4}, Group: {board.group_123}, User: {user_data_456}',
+  { date4: '2025-12-02', group_123: 'TeamA', user_data_456: 'John' }
+);
+assertEquals(
+  result26,
+  'Date: 2025-12-02, Group: TeamA, User: John',
+  'Should handle complex column IDs with numbers and underscores'
+);
+
+// ========== TEST 27: Various prefixes from real Monday.com ==========
+console.log(`\n${colors.yellow}Test 27: Various real Monday.com prefixes${colors.reset}`);
+const result27 = substituteTemplate(
+  '{pulse.name}, {board.status}, {user.email_mkxja1xz}, {pulse.group}, {person.account}, {pulse.date4}',
+  {
+    name: 'Item1',
+    status: 'Done',
+    email_mkxja1xz: '[email protected]',
+    group: 'G1',
+    account: 'A1',
+    date4: '2025-12-02'
+  }
+);
+assertEquals(
+  result27,
+  'Item1, Done, [email protected], G1, A1, 2025-12-02',
+  'Should handle all Monday.com prefixes correctly'
+);
+
 // ========== TEST 16: valueToString edge cases ==========
 console.log(`\n${colors.yellow}Test 16: valueToString function${colors.reset}`);
 

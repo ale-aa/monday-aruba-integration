@@ -73,15 +73,17 @@ function valueToString(value) {
 /**
  * Sostituisce i placeholder in un template string
  *
- * Supporta due sintassi:
+ * Supporta tre pattern di placeholder:
  * 1. {{variabile}} - Sintassi di template custom
- * 2. {pulse.columnId} - Sintassi di Monday.com per i field dinamici
+ * 2. {prefix.columnId} - Sintassi flessibile con qualsiasi prefisso
+ *    Esempi: {pulse.name}, {board.status}, {user.email}, {pulse.email_mkxja1xz}
+ * 3. {columnId} - Placeholder diretto senza prefisso
  *
  * Funzionamento:
- * - Cerca tutti i pattern {{variabile}} e {pulse.columnId} nel template
+ * - Cerca tutti i pattern nel template ({{}} e {prefix.} e {})
  * - Sostituisce con i valori presenti in fieldValues
+ * - Usa matching intelligente: cerca il columnId tra le chiavi disponibili
  * - Se una variabile non esiste, lascia il placeholder intatto oppure usa stringaVuota
- * - Gestisce automaticamente diversi tipi di valore
  *
  * @param {string} template - Template string con placeholder
  * @param {Object} fieldValues - Oggetto con i valori da sostituire (inboundFieldValues)
@@ -89,14 +91,19 @@ function valueToString(value) {
  * @returns {string} - Template con placeholder sostituiti
  *
  * @example
- * const template = "Ciao {{name}}, la tua email è {{email}}";
- * const fields = { name: "Mario Rossi", email: "[email protected]" };
- * substituteTemplate(template, fields); // "Ciao Mario Rossi, la tua email è [email protected]"
+ * const template = "Ciao {{name}}, email: {{email}}";
+ * const fields = { name: "Mario", email: "[email protected]" };
+ * substituteTemplate(template, fields); // "Ciao Mario, email: [email protected]"
  *
  * @example
- * const template = "Ciao {pulse.name}, la tua email è {pulse.email_mkxja1xz}";
- * const fields = { name: "Mario Rossi", email_mkxja1xz: "[email protected]" };
- * substituteTemplate(template, fields); // "Ciao Mario Rossi, la tua email è [email protected]"
+ * const template = "Ciao {pulse.name}, status: {pulse.status}";
+ * const fields = { name: "Mario", status: "Active" };
+ * substituteTemplate(template, fields); // "Ciao Mario, status: Active"
+ *
+ * @example
+ * const template = "Ciao {name}, email: {board.email_mkxja1xz}";
+ * const fields = { name: "Mario", email_mkxja1xz: "[email protected]" };
+ * substituteTemplate(template, fields); // "Ciao Mario, email: [email protected]"
  */
 function substituteTemplate(template, fieldValues, removeUnknown = true) {
   // Validazione input
@@ -117,16 +124,15 @@ function substituteTemplate(template, fieldValues, removeUnknown = true) {
 
   // ===== PATTERN 1: {{variabile}} =====
   // Regex per trovare tutti i placeholder {{variabile}}
-  const placeholderRegex = /\{\{([^}]+)\}\}/g;
+  const doubleRegex = /\{\{([^}]+)\}\}/g;
 
   if (result.includes('{{')) {
     let match;
-    while ((match = placeholderRegex.exec(template)) !== null) {
+    while ((match = doubleRegex.exec(template)) !== null) {
       const fullPlaceholder = match[0]; // Es: "{{name}}"
       const variableName = match[1].trim(); // Es: "name"
 
-      // Estrai il valore dal fieldValues
-      const value = fieldValues[variableName];
+      const value = findValue(fieldValues, variableName);
 
       // Se il valore esiste, converti a stringa e sostituisci
       if (value !== undefined && value !== null) {
@@ -135,7 +141,6 @@ function substituteTemplate(template, fieldValues, removeUnknown = true) {
       } else {
         // Se la variabile non esiste
         if (removeUnknown) {
-          // Rimuovi il placeholder (sostituisci con stringa vuota)
           result = result.replace(fullPlaceholder, '');
         }
         // Altrimenti lascia il placeholder così com'è
@@ -143,51 +148,30 @@ function substituteTemplate(template, fieldValues, removeUnknown = true) {
     }
   }
 
-  // ===== PATTERN 2: {pulse.columnId} =====
-  // Regex per trovare tutti i placeholder {pulse.columnId}
-  // Pattern: {pulse. seguito da qualsiasi carattere (non greedy) seguito da }
-  const mondayPlaceholderRegex = /\{pulse\.([^}]+)\}/g;
+  // ===== PATTERN 2: {prefix.columnId} =====
+  // Regex per trovare tutti i placeholder {prefix.columnId}
+  // Accetta qualsiasi prefisso: {pulse.}, {board.}, {user.}, {group.}, {person.}, ecc.
+  const prefixRegex = /\{([a-zA-Z0-9_]+)\.([^}]+)\}/g;
 
-  if (result.includes('{pulse.')) {
+  if (result.includes('{') && !result.includes('{{')) {
     let match;
-    // Crea un nuovo oggetto per tracciare le sostituzioni già fatte
     const toReplace = [];
 
     // Prima passa: raccogli tutti i match
-    const tempTemplate = result;
     let tempMatch;
-    while ((tempMatch = mondayPlaceholderRegex.exec(tempTemplate)) !== null) {
+    while ((tempMatch = prefixRegex.exec(result)) !== null) {
       toReplace.push({
         full: tempMatch[0],
-        columnId: tempMatch[1].trim()
+        prefix: tempMatch[1],
+        columnId: tempMatch[2].trim()
       });
     }
 
     // Seconda passa: sostituisci
     for (const item of toReplace) {
-      const fullPlaceholder = item.full; // Es: "{pulse.name}"
-      const columnId = item.columnId; // Es: "name" oppure "email_mkxja1xz"
+      const { full: fullPlaceholder, columnId } = item;
 
-      // Estrai il valore dal fieldValues
-      // Prova prima il columnId diretto, poi il nome semplificato
-      let value = fieldValues[columnId];
-
-      // Se non trova, prova a cercare tra le chiavi disponibili
-      if (value === undefined || value === null) {
-        // Cerca la chiave che contiene il columnId come parte del nome
-        for (const [key, val] of Object.entries(fieldValues)) {
-          // Match esatto
-          if (key === columnId) {
-            value = val;
-            break;
-          }
-          // Match per suffisso (es: email_mkxja1xz contiene "email")
-          if (key.includes(columnId) || columnId.includes(key)) {
-            value = val;
-            break;
-          }
-        }
-      }
+      const value = findValue(fieldValues, columnId);
 
       // Se il valore esiste, converti a stringa e sostituisci
       if (value !== undefined && value !== null) {
@@ -196,7 +180,48 @@ function substituteTemplate(template, fieldValues, removeUnknown = true) {
       } else {
         // Se la variabile non esiste
         if (removeUnknown) {
-          // Rimuovi il placeholder (sostituisci con stringa vuota)
+          result = result.replace(fullPlaceholder, '');
+        }
+        // Altrimenti lascia il placeholder così com'è
+      }
+    }
+  }
+
+  // ===== PATTERN 3: {columnId} =====
+  // Regex per trovare placeholder diretti senza prefisso
+  // Ma esclude i match già catturati da Pattern 2 (che contengono un punto)
+  const directRegex = /\{([a-zA-Z0-9_]+)\}/g;
+
+  if (result.includes('{')) {
+    let match;
+    const toReplace = [];
+
+    // Prima passa: raccogli tutti i match
+    let tempMatch;
+    while ((tempMatch = directRegex.exec(result)) !== null) {
+      const columnId = tempMatch[1].trim();
+      // Esclude i match che contengono un punto (già gestiti da Pattern 2)
+      if (!columnId.includes('.')) {
+        toReplace.push({
+          full: tempMatch[0],
+          columnId: columnId
+        });
+      }
+    }
+
+    // Seconda passa: sostituisci
+    for (const item of toReplace) {
+      const { full: fullPlaceholder, columnId } = item;
+
+      const value = findValue(fieldValues, columnId);
+
+      // Se il valore esiste, converti a stringa e sostituisci
+      if (value !== undefined && value !== null) {
+        const stringValue = valueToString(value);
+        result = result.replace(fullPlaceholder, stringValue);
+      } else {
+        // Se la variabile non esiste
+        if (removeUnknown) {
           result = result.replace(fullPlaceholder, '');
         }
         // Altrimenti lascia il placeholder così com'è
@@ -205,6 +230,36 @@ function substituteTemplate(template, fieldValues, removeUnknown = true) {
   }
 
   return result;
+}
+
+/**
+ * Funzione helper per trovare un valore in fieldValues
+ * Usa matching intelligente: cerca il columnId tra le chiavi disponibili
+ *
+ * @param {Object} fieldValues - Oggetto con i dati
+ * @param {string} columnId - ID della colonna da cercare
+ * @returns {*} - Il valore trovato o undefined
+ */
+function findValue(fieldValues, columnId) {
+  // Match esatto
+  if (fieldValues[columnId] !== undefined) {
+    return fieldValues[columnId];
+  }
+
+  // Match per suffisso o contiene
+  for (const [key, val] of Object.entries(fieldValues)) {
+    // La chiave contiene il columnId come suffisso (es: email_mkxja1xz contiene "email")
+    if (key.endsWith(columnId) || key.includes(columnId)) {
+      return val;
+    }
+    // Il columnId contiene la chiave (es: email_mkxja1xz e cerchiamo per "email")
+    if (columnId.includes(key)) {
+      return val;
+    }
+  }
+
+  // Non trovato
+  return undefined;
 }
 
 module.exports = {
