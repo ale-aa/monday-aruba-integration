@@ -14,6 +14,7 @@ const IntegrationCredentials = require('../models/IntegrationCredentials');
 const { logAuthSuccess, logAuthFailure } = require('../middleware/authLogger');
 const EmailService = require('../services/emailService');
 const { verifyJWT } = require('../utils/jwtUtils');
+const { substituteTemplate } = require('../utils/templateSubstitution');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -388,8 +389,18 @@ class EmailController {
       subject = String(subject || 'Email da Monday.com').trim();
       body = String(body || '').trim();
 
-      console.log('[EmailController] Subject:', subject);
-      console.log('[EmailController] Body length:', body.length);
+      console.log('[EmailController] Subject (before substitution):', subject);
+      console.log('[EmailController] Body length (before substitution):', body.length);
+
+      // ===== SOSTITUISCI TEMPLATE =====
+      console.log('[EmailController] ========== TEMPLATE SUBSTITUTION ==========');
+      console.log('[EmailController] Available variables in inboundFieldValues:', Object.keys(inboundFieldValues || {}));
+
+      subject = substituteTemplate(subject, inboundFieldValues, true);
+      body = substituteTemplate(body, inboundFieldValues, true);
+
+      console.log('[EmailController] Subject (after substitution):', subject);
+      console.log('[EmailController] Body length (after substitution):', body.length);
       console.log('[EmailController] ==========================================');
 
       // ===== RECUPERA CREDENZIALI ARUBA =====
