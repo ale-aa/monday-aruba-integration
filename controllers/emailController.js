@@ -47,6 +47,135 @@ function savePayloadLog(payload, userId) {
   }
 }
 
+/**
+ * Estrae tutti i columnId dai placeholder nel template
+ * Supporta pattern: {prefix.columnId}, {columnId}, {{columnId}}
+ *
+ * @param {string} template - Template con placeholder
+ * @returns {string[]} - Array di columnId unici
+ */
+function extractColumnIds(template) {
+  if (!template || typeof template !== 'string') {
+    return [];
+  }
+
+  const columnIds = new Set();
+
+  // Pattern 1: {prefix.columnId} - Estrai solo columnId
+  const prefixRegex = /\{([a-zA-Z0-9_]+)\.([^}]+)\}/g;
+  let match;
+  while ((match = prefixRegex.exec(template)) !== null) {
+    columnIds.add(match[2].trim());
+  }
+
+  // Pattern 2: {columnId} - Diretto
+  const directRegex = /\{([a-zA-Z0-9_]+)\}/g;
+  while ((match = directRegex.exec(template)) !== null) {
+    const columnId = match[1].trim();
+    if (!columnId.includes('.')) {
+      columnIds.add(columnId);
+    }
+  }
+
+  // Pattern 3: {{columnId}} - Template custom
+  const doubleRegex = /\{\{([^}]+)\}\}/g;
+  while ((match = doubleRegex.exec(template)) !== null) {
+    columnIds.add(match[1].trim());
+  }
+
+  return Array.from(columnIds);
+}
+
+/**
+ * Fetcha i valori di più colonne dal board Monday
+ * Crea una query GraphQL che recupera tutti i columnIds in una sola richiesta
+ *
+ * @param {string} itemId - ID dell'item
+ * @param {string[]} columnIds - Array di column ID da recuperare
+ * @param {string} jwtToken - JWT token per autenticazione
+ * @returns {Promise<Object>} - Oggetto { columnId: value }
+ */
+async function fetchColumnValues(itemId, columnIds, jwtToken) {
+  const jwt = require('jsonwebtoken');
+
+  try {
+    console.log('[EmailController] ========== FETCHING COLUMN VALUES ==========');
+    console.log('[EmailController] itemId:', itemId);
+    console.log('[EmailController] columnIds to fetch:', columnIds);
+
+    if (!columnIds || columnIds.length === 0) {
+      console.log('[EmailController] No columns to fetch');
+      return {};
+    }
+
+    // Estrai il short-lived token dal JWT
+    let apiToken;
+    const cleanToken = jwtToken.replace(/^Bearer\s+/i, '');
+    const decoded = jwt.decode(cleanToken);
+
+    if (decoded?.dat?.shortLivedToken) {
+      apiToken = decoded.dat.shortLivedToken;
+    } else if (decoded?.shortLivedToken) {
+      apiToken = decoded.shortLivedToken;
+    } else {
+      throw new Error('shortLivedToken not found in JWT');
+    }
+
+    // Costruisci la query GraphQL per recuperare tutte le colonne
+    const columnIdsStr = columnIds.map(id => `"${id}"`).join(', ');
+    const query = `
+      query {
+        items(ids: [${itemId}]) {
+          id
+          column_values(ids: [${columnIdsStr}]) {
+            id
+            text
+            value
+            type
+          }
+        }
+      }
+    `;
+
+    console.log('[EmailController] GraphQL Query:', query.replace(/\s+/g, ' ').trim());
+
+    // Chiama l'API Monday.com
+    const response = await axios.post('https://api.monday.com/v2',
+      { query },
+      {
+        headers: {
+          'Authorization': apiToken,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('[EmailController] API Response received');
+
+    // Verifica errori GraphQL
+    if (response.data?.errors) {
+      console.error('[EmailController] GraphQL Errors:', response.data.errors);
+      throw new Error(`GraphQL Error: ${response.data.errors.map(e => e.message).join(', ')}`);
+    }
+
+    // Costruisci un oggetto { columnId: value }
+    const columnValues = response.data?.data?.items?.[0]?.column_values || [];
+    const result = {};
+
+    for (const cv of columnValues) {
+      const value = cv.text || cv.value;
+      result[cv.id] = value;
+      console.log('[EmailController] Column', cv.id, ':', value);
+    }
+
+    console.log('[EmailController] ==========================================');
+    return result;
+  } catch (err) {
+    console.error('[EmailController] Error fetching column values:', err.message);
+    throw err;
+  }
+}
+
 // Helper per recuperare il valore della colonna email da Monday API
 // Estrae il shortLivedToken dal JWT e lo usa per l'autenticazione
 async function fetchEmailFromColumn(itemId, columnId, jwtToken) {
@@ -392,12 +521,45 @@ class EmailController {
       console.log('[EmailController] Subject (before substitution):', subject);
       console.log('[EmailController] Body length (before substitution):', body.length);
 
+      // ===== ESTRAI COLUMNID DAI PLACEHOLDER =====
+      console.log('[EmailController] ========== EXTRACTING COLUMN IDS FROM PLACEHOLDERS ==========');
+      const subjectColumnIds = extractColumnIds(subject);
+      const bodyColumnIds = extractColumnIds(body);
+      const allColumnIds = [...new Set([...subjectColumnIds, ...bodyColumnIds])];
+
+      console.log('[EmailController] Column IDs in subject:', subjectColumnIds);
+      console.log('[EmailController] Column IDs in body:', bodyColumnIds);
+      console.log('[EmailController] All unique column IDs:', allColumnIds);
+
+      // Se ci sono placeholder con columnId, fetcha i valori dal board
+      let fetchedValues = {};
+      if (allColumnIds.length > 0) {
+        const itemId = payload.itemId || inboundFieldValues?.itemId;
+        if (itemId) {
+          console.log('[EmailController] Fetching column values for itemId:', itemId);
+          try {
+            fetchedValues = await fetchColumnValues(itemId, allColumnIds, graphqlToken);
+            console.log('[EmailController] ✅ Fetched values:', JSON.stringify(fetchedValues, null, 2));
+          } catch (fetchErr) {
+            console.error('[EmailController] ⚠️ Error fetching column values:', fetchErr.message);
+            // Non failare completamente, continua con i valori disponibili
+            console.error('[EmailController] Continuing with available values...');
+          }
+        } else {
+          console.log('[EmailController] ⚠️ No itemId found for fetching column values');
+        }
+      }
+
       // ===== SOSTITUISCI TEMPLATE =====
       console.log('[EmailController] ========== TEMPLATE SUBSTITUTION ==========');
       console.log('[EmailController] Available variables in inboundFieldValues:', Object.keys(inboundFieldValues || {}));
+      console.log('[EmailController] Available fetched values:', Object.keys(fetchedValues));
 
-      subject = substituteTemplate(subject, inboundFieldValues, true);
-      body = substituteTemplate(body, inboundFieldValues, true);
+      // Unisci inboundFieldValues con i valori fetchati (fetchedValues ha priorità)
+      const allFieldValues = { ...inboundFieldValues, ...fetchedValues };
+
+      subject = substituteTemplate(subject, allFieldValues, true);
+      body = substituteTemplate(body, allFieldValues, true);
 
       console.log('[EmailController] Subject (after substitution):', subject);
       console.log('[EmailController] Body length (after substitution):', body.length);
