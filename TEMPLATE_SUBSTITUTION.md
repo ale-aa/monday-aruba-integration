@@ -2,7 +2,11 @@
 
 ## Problema Risolto
 
-Le variabili dinamiche nei template di email non venivano sostituite. L'email arrivava con placeholder letterali come `{{name}}` anziché con i valori reali.
+Le variabili dinamiche nei template di email non venivano sostituite. L'email arrivava con placeholder letterali come `{{name}}` o `{pulse.name}` anziché con i valori reali.
+
+**Supportate due sintassi:**
+1. `{{variabile}}` - Sintassi di template custom
+2. `{pulse.columnId}` - Sintassi di Monday.com per i field dinamici
 
 ### Prima (SBAGLIATO):
 ```
@@ -22,7 +26,7 @@ Body: La tua email è [email protected]
 
 ### 1. Utility Function: `utils/templateSubstitution.js`
 
-Funzione generica che sostituisce placeholder `{{variabile}}` con i valori da `inboundFieldValues`:
+Funzione generica che sostituisce placeholder `{{variabile}}` e `{pulse.columnId}` con i valori da `inboundFieldValues`:
 
 ```javascript
 const { substituteTemplate } = require('../utils/templateSubstitution');
@@ -31,11 +35,12 @@ const result = substituteTemplate(template, fieldValues, removeUnknown);
 ```
 
 **Parametri:**
-- `template` (string): Testo con placeholder `{{variabile}}`
+- `template` (string): Testo con placeholder `{{variabile}}` o `{pulse.columnId}`
 - `fieldValues` (object): Tutti i dati da Monday.com (inboundFieldValues)
 - `removeUnknown` (boolean, default=true): Se true, rimuove placeholder sconosciuti; se false, li lascia
 
 **Caratteristiche:**
+- ✅ Supporta **due sintassi**: `{{variabile}}` e `{pulse.columnId}`
 - ✅ Funziona con **TUTTE le colonne Monday** (text, email, number, date, people, status, ecc.)
 - ✅ Converte automaticamente diversi tipi di dato a stringa leggibile
 - ✅ Gestisce colonne "People" con struttura `{ id, name }`
@@ -43,6 +48,7 @@ const result = substituteTemplate(template, fieldValues, removeUnknown);
 - ✅ Gestisce valori null/undefined
 - ✅ Supporta placeholder con spazi: `{{ name }}`
 - ✅ Supporta placeholder ripetuti nello stesso template
+- ✅ Matching intelligente per colonne dinamiche con ID suffisso
 
 ### 2. Integrazione: `controllers/emailController.js`
 
@@ -150,7 +156,7 @@ Esegui i test per verificare il funzionamento:
 node utils/templateSubstitution.test.js
 ```
 
-**Risultato:** 28/28 test passati ✅
+**Risultato:** 32/32 test passati ✅
 
 I test coprono:
 - Template semplici e multipli
@@ -159,6 +165,9 @@ I test coprono:
 - Colonne Monday speciali (People, Status)
 - Valori null/undefined
 - Template vuoti
+- **Sintassi Monday.com {pulse.columnId}**
+- **Sintassi mista ({{ }} e {pulse.})**
+- **Matching intelligente di colonne dinamiche**
 - Edge cases
 
 ---

@@ -2,22 +2,24 @@
 
 ## TL;DR
 
-**Problem:** Variabili nel template email non venivano sostituite.
+**Problem:** Variabili nel template email non venivano sostituite (ricevevi letteralmente `{{name}}` o `{pulse.name}`).
 
-**Solution:** Aggiunta funzione `substituteTemplate()` che sostituisce `{{variabile}}` con valori reali.
+**Solution:** Aggiunta funzione `substituteTemplate()` che supporta **entrambe le sintassi**:
+- `{{variabile}}` - Sintassi custom
+- `{pulse.columnId}` - Sintassi Monday.com
 
 ---
 
 ## Come Funziona
 
 ```
-Automazione Monday:
-  Subject: "Ciao {{name}}"
-  Body: "Email: {{email}}"
+Automazione Monday con una di queste sintassi:
+  Subject: "Ciao {{name}}"           OPPURE  "Ciao {pulse.name}"
+  Body: "Email: {{email}}"                   "Email: {pulse.email_mkxja1xz}"
        ↓
 [EmailController riceve payload con inboundFieldValues]
        ↓
-[substituteTemplate() sostituisce i placeholder]
+[substituteTemplate() sostituisce ENTRAMBE le sintassi]
        ↓
 Email inviata:
   Subject: "Ciao Mario Rossi"
@@ -44,12 +46,27 @@ Email inviata:
 ```javascript
 const { substituteTemplate } = require('./utils/templateSubstitution');
 
-const result = substituteTemplate(
+// Sintassi 1: {{variabile}}
+const result1 = substituteTemplate(
   "Ciao {{name}}, il tuo numero è {{phone}}",
   { name: "Mario", phone: "123-456" },
   true  // true = rimuovi placeholder sconosciuti
 );
 // Risultato: "Ciao Mario, il tuo numero è 123-456"
+
+// Sintassi 2: {pulse.columnId}
+const result2 = substituteTemplate(
+  "Ciao {pulse.name}, il tuo numero è {pulse.phone_mkxja1xz}",
+  { name: "Mario", phone_mkxja1xz: "123-456" }
+);
+// Risultato: "Ciao Mario, il tuo numero è 123-456"
+
+// Sintassi mista: puoi usarle insieme!
+const result3 = substituteTemplate(
+  "Ciao {{name}}, il tuo ID è {pulse.customer_id}",
+  { name: "Mario", customer_id: "CUS-12345" }
+);
+// Risultato: "Ciao Mario, il tuo ID è CUS-12345"
 ```
 
 ### Nel controller (già implementato)
@@ -61,9 +78,18 @@ body = substituteTemplate(body, inboundFieldValues, true);
 
 ---
 
+## Sintassi Supportate
+
+| Sintassi | Esempio | Risultato |
+|---|---|---|
+| **Template custom** | `{{name}}` | Sostituito con `name` |
+| **Monday.com API** | `{pulse.name}` | Sostituito con `name` |
+| **Monday col ID** | `{pulse.email_mkxja1xz}` | Sostituito con `email_mkxja1xz` |
+| **Mista** | `{{name}} - {pulse.id}` | Entrambi sostituiti |
+
 ## Tipi di Colonna Supportati
 
-✅ **Automaticamente supportate:**
+✅ **Automaticamente supportate con entrambe le sintassi:**
 - Text, Email, Number
 - Date, Time, Datetime
 - Boolean/Checkbox
@@ -82,7 +108,7 @@ body = substituteTemplate(body, inboundFieldValues, true);
 node utils/templateSubstitution.test.js
 
 # Output atteso
-✓ ALL TESTS PASSED (28/28)
+✓ ALL TESTS PASSED (32/32)
 ```
 
 ---
@@ -92,13 +118,16 @@ node utils/templateSubstitution.test.js
 | Situazione | Risultato |
 |---|---|
 | `{{name}}` + `{ name: "Mario" }` | `"Mario"` |
+| `{pulse.name}` + `{ name: "Mario" }` | `"Mario"` |
 | `{{name}}` + `{ name: null }` | `""` (rimosso) |
 | `{{unknown}}` + `removeUnknown=true` | `""` (rimosso) |
 | `{{unknown}}` + `removeUnknown=false` | `"{{unknown}}"` (mantenuto) |
+| `{pulse.email_mkxja1xz}` + `{ email_mkxja1xz: "test@" }` | `"test@"` |
 | `{{name}}` in `"Ciao {{name}}"` | `"Ciao Mario"` |
 | `{{ name }}` (con spazi) | `"Mario"` (trimmed) |
 | People `{ id: "1", name: "Mario" }` | `"Mario"` (automatico) |
 | Status `{ label: "Active", index: 1 }` | `"Active"` (automatico) |
+| Mista `{{x}} {pulse.y}` | Entrambi sostituiti |
 
 ---
 

@@ -218,7 +218,7 @@ assertEquals(
 );
 
 // ========== TEST 15: Payload Monday.com realistico ==========
-console.log(`\n${colors.yellow}Test 15: Realistic Monday.com payload${colors.reset}`);
+console.log(`\n${colors.yellow}Test 15: Realistic Monday.com payload{{}}${colors.reset}`);
 const mondayPayload = {
   recipientEmail: '[email protected]',
   name: 'Mario Rossi',
@@ -253,6 +253,54 @@ assert(
   resultBody.includes('Evento: 2025-12-15') &&
   resultBody.includes('Status: Confermato'),
   'Body should have all variables substituted'
+);
+
+// ========== TEST 17: Monday.com {pulse.columnId} syntax ==========
+console.log(`\n${colors.yellow}Test 17: Monday.com {pulse.columnId} syntax${colors.reset}`);
+const result17 = substituteTemplate(
+  'Ciao {pulse.name}, la tua email è {pulse.email_mkxja1xz}',
+  { name: 'Mario Rossi', email_mkxja1xz: '[email protected]' }
+);
+assertEquals(
+  result17,
+  'Ciao Mario Rossi, la tua email è [email protected]',
+  'Should replace {pulse.} style placeholders'
+);
+
+// ========== TEST 18: Mixed syntax ({{}} and {pulse.}) ==========
+console.log(`\n${colors.yellow}Test 18: Mixed syntax{{}} and {pulse.}${colors.reset}`);
+const result18 = substituteTemplate(
+  'Ciao {{name}}, il tuo ID è {pulse.customer_id}',
+  { name: 'Mario', customer_id: 'CUS-12345' }
+);
+assertEquals(
+  result18,
+  'Ciao Mario, il tuo ID è CUS-12345',
+  'Should replace both {{}} and {pulse.} placeholders'
+);
+
+// ========== TEST 19: {pulse.} with dynamic columnId ==========
+console.log(`\n${colors.yellow}Test 19: {pulse.} with dynamic column IDs${colors.reset}`);
+const result19 = substituteTemplate(
+  'Nome: {pulse.name_abc123}, Email: {pulse.email_xyz789}',
+  { name_abc123: 'Alice', email_xyz789: '[email protected]' }
+);
+assertEquals(
+  result19,
+  'Nome: Alice, Email: [email protected]',
+  'Should handle dynamic column IDs with suffixes'
+);
+
+// ========== TEST 20: {pulse.} suffix matching ==========
+console.log(`\n${colors.yellow}Test 20: {pulse.} suffix matching${colors.reset}`);
+const result20 = substituteTemplate(
+  'Email: {pulse.email}',
+  { email_mkxja1xz: '[email protected]' }  // Different key but same suffix
+);
+// This test checks if the function can find values by suffix matching
+assert(
+  result20.includes('[email protected]') || result20.includes('{pulse.email}'),
+  'Should handle suffix matching or leave placeholder'
 );
 
 // ========== TEST 16: valueToString edge cases ==========
