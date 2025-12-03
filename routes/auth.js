@@ -125,8 +125,8 @@ router.post('/monday/deleteUserCredentials', verifyMonday, AuthController.delete
  *   "smtp_port": 465
  * }
  */
-router.post('/monday/update-smtp/:userId', async (req, res) => {
-  const userId = req.params.userId;
+router.post('/monday/update-smtp', verifyMonday, async (req, res) => {
+  const userId = req.monday.userId;  // ✅ From verified JWT
   const { smtp_host, smtp_port } = req.body;
 
   try {

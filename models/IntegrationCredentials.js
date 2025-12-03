@@ -77,11 +77,10 @@ class IntegrationCredentials {
 
     console.log(`[IntegrationCredentials] Creating credentials for user: ${userId}`);
 
-    // TEMP: Disable encryption for debugging
-    // const encryptedPassword = this.encrypt(aruba_password);
-    const encryptedPassword = aruba_password; // TEMP: Save password in plain text
+    // ✅ ENCRYPTION ENABLED
+    const encryptedPassword = this.encrypt(aruba_password);
 
-    console.warn('[IntegrationCredentials] ⚠️ WARNING: Password saved in PLAIN TEXT (debug mode)');
+    console.log('[IntegrationCredentials] ✅ Password encrypted with AES-256-CBC');
 
     try {
       const credentials = await prisma.integrationCredentials.create({

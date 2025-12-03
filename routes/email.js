@@ -143,8 +143,9 @@ router.post('/monday/sendEmail', verifyMonday, (req, res) => EmailController.sen
 /**
  * GET /debug/email-payloads
  * Legge i payload ricevuti da Monday per debugging
+ * ✅ NOW REQUIRES AUTHENTICATION
  */
-router.get('/debug/email-payloads', (req, res) => {
+router.get('/debug/email-payloads', verifyMonday, (req, res) => {
   try {
     const logFile = path.join(process.cwd(), 'logs', 'email-payloads.json');
     if (!fs.existsSync(logFile)) {

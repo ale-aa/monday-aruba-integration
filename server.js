@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');  // ✅ Security headers
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -21,9 +22,17 @@ const PORT = process.env.PORT || 8080;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(helmet({  // ✅ Security headers
+  strictTransportSecurity: {
+    maxAge: 31536000,  // 1 year
+    includeSubDomains: true,
+    preload: true
+  }
+}));
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
+  origin: process.env.CORS_ORIGIN || 'https://monday.com',  // ✅ Restrict to Monday.com only
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 app.use(authLogger);
 
