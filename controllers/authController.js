@@ -71,8 +71,25 @@ class AuthController {
         source: 'Monday.com'
       });
 
-      // Mostra sempre il form (non fare redirect automatico se credenziali esistono)
-      // L'utente può aggiornare le credenziali se lo desidera
+      // STEP IMPORTANTE: Controlla se le credenziali esistono già
+      // Se sì, redireziona direttamente senza mostrare il form
+      console.log('[AuthController] Verifico se credenziali esistono già per userId:', userId);
+      try {
+        const existingCredentials = await IntegrationCredentials.findByUserId(userId);
+
+        if (existingCredentials) {
+          // ✅ Credenziali trovate! Redireziona direttamente
+          console.log('[AuthController] ✅ Credenziali trovate per userId:', userId);
+          console.log('[AuthController] Redirecting to backToUrl:', backToUrl);
+          return res.redirect(backToUrl || '/');
+        }
+
+        // ✅ Credenziali non trovate, mostra il form di login
+        console.log('[AuthController] Credenziali NON trovate, mostrando form di login');
+      } catch (credentialsCheckError) {
+        console.warn('[AuthController] Errore nel controllo credenziali:', credentialsCheckError.message);
+        // Se c'è errore nel controllo, mostra il form comunque
+      }
 
       // Mostra il form HTML per la configurazione
       // backToUrl non deve essere encoded qui: il browser lo farà automaticamente nel form submission
