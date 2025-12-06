@@ -37,6 +37,26 @@ app.use(cors({
 }));
 app.use(authLogger);
 
+// ===== HTTPS ENFORCEMENT =====
+// In production, redirect all HTTP requests to HTTPS
+// x-forwarded-proto header is set by reverse proxy (Vercel, etc.)
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    // Check if request is HTTPS (either direct TLS or x-forwarded-proto header)
+    const isHttps =
+      req.secure ||  // Direct HTTPS connection
+      req.header('x-forwarded-proto') === 'https' ||  // Behind reverse proxy
+      process.env.DEPLOYMENT_ENVIRONMENT === 'monday'; // Monday.com deployment
+
+    if (!isHttps) {
+      // Redirect to HTTPS with 308 (Permanent Redirect, preserves method)
+      const host = req.header('host') || req.hostname;
+      return res.redirect(308, `https://${host}${req.originalUrl}`);
+    }
+    next();
+  });
+}
+
 // ===== DOMAIN VERIFICATION FOR MONDAY.COM =====
 // Serve .well-known directory for domain ownership verification
 // This allows Monday.com to verify app ownership via monday-app-association.json
