@@ -158,11 +158,8 @@ class IntegrationCredentials {
         return null;
       }
 
-      // TEMP: Disable decryption for debugging
-      // const decryptedPassword = this.decrypt(credentials.arubaPassword);
-      const decryptedPassword = credentials.arubaPassword; // TEMP: Return password in plain text
-
-      console.warn('[IntegrationCredentials] ⚠️ WARNING: Password returned in PLAIN TEXT (debug mode)');
+      // ✅ DECRYPTION ENABLED
+      const decryptedPassword = this.decrypt(credentials.arubaPassword);
 
       return {
         id: credentials.id,
@@ -216,14 +213,11 @@ class IntegrationCredentials {
       console.log(`[IntegrationCredentials] ✓ SMTP port will be updated to:`, parseInt(data.smtp_port));
     }
 
-    // CRITICAL: Encrypt and update password if provided
+    // ✅ ENCRYPT password if provided
     if (data.aruba_password) {
-      console.log(`[IntegrationCredentials] ⚠️ Password provided - saving in PLAIN TEXT...`);
-      // TEMP: Disable encryption for debugging
-      // const encryptedPassword = this.encrypt(data.aruba_password);
-      updateData.arubaPassword = data.aruba_password; // TEMP: Save password in plain text
-      console.warn('[IntegrationCredentials] ⚠️ WARNING: Password saved in PLAIN TEXT (debug mode)');
-      console.log(`[IntegrationCredentials] ✓ Password saved (length: ${data.aruba_password.length})`);
+      const encryptedPassword = this.encrypt(data.aruba_password);
+      updateData.arubaPassword = encryptedPassword;
+      console.log(`[IntegrationCredentials] ✓ Password encrypted with AES-256-CBC (length: ${data.aruba_password.length})`);
     }
 
     console.log(`[IntegrationCredentials] Update data prepared:`, Object.keys(updateData));
