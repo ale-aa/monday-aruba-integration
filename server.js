@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');  // ✅ Security headers
+const path = require('path');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -35,6 +36,20 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 app.use(authLogger);
+
+// ===== DOMAIN VERIFICATION FOR MONDAY.COM =====
+// Serve .well-known directory for domain ownership verification
+// This allows Monday.com to verify app ownership via monday-app-association.json
+app.use('/.well-known', express.static(path.join(__dirname, '.well-known'), {
+  setHeaders: (res, filePath) => {
+    // Ensure correct MIME type for JSON files
+    if (filePath.endsWith('.json')) {
+      res.set('Content-Type', 'application/json');
+    }
+    // Allow public access without authentication
+    res.set('Cache-Control', 'public, max-age=3600');
+  }
+}));
 
 // Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {
