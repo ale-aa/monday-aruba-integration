@@ -45,19 +45,49 @@ class IntegrationCredentials {
 
   /**
    * Decrypt password with AES-256-CBC
-   * @param {string} ciphertext - Encrypted password (IV:encrypted)
+   * Handles both encrypted (IV:encrypted) and plaintext (legacy) formats
+   * @param {string} ciphertext - Encrypted password (IV:encrypted) or plaintext
    * @returns {string} Decrypted password
    */
   static decrypt(ciphertext) {
+    // Check if this is a legacy plaintext password (no ':' separator)
+    if (!ciphertext.includes(':')) {
+      console.warn('[IntegrationCredentials] ⚠️ Legacy plaintext password detected - returning as-is');
+      return ciphertext;
+    }
+
     const [ivHex, encrypted] = ciphertext.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const key = this.deriveKey(process.env.ENCRYPTION_KEY);
 
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+    // Validate IV format
+    if (!ivHex || !encrypted) {
+      console.error('[IntegrationCredentials] ✗ Invalid ciphertext format - missing IV or encrypted data');
+      throw new Error('Invalid ciphertext format');
+    }
 
-    return decrypted;
+    try {
+      const iv = Buffer.from(ivHex, 'hex');
+
+      // Validate IV length (should be 16 bytes for AES)
+      if (iv.length !== 16) {
+        console.error(`[IntegrationCredentials] ✗ Invalid IV length: ${iv.length} (expected 16)`);
+        throw new Error('Invalid initialization vector length');
+      }
+
+      const key = this.deriveKey(process.env.ENCRYPTION_KEY);
+      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+
+      return decrypted;
+    } catch (error) {
+      console.error('[IntegrationCredentials] ✗ Decryption error:', error.message);
+      // If decryption fails, assume it's a legacy plaintext password
+      if (error.code === 'ERR_CRYPTO_INVALID_IV' || error.message.includes('Invalid')) {
+        console.warn('[IntegrationCredentials] ⚠️ Assuming legacy plaintext password due to decryption error');
+        return ciphertext;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -158,8 +188,19 @@ class IntegrationCredentials {
         return null;
       }
 
-      // ✅ DECRYPTION ENABLED
+      // ✅ DECRYPTION ENABLED - Handles both encrypted and legacy plaintext
       const decryptedPassword = this.decrypt(credentials.arubaPassword);
+
+      // 🔄 Auto-migrate plaintext passwords to encrypted format
+      if (!credentials.arubaPassword.includes(':')) {
+        console.log(`[IntegrationCredentials] 🔄 Auto-migrating plaintext password to encrypted format for user: ${userId}`);
+        const encryptedPassword = this.encrypt(decryptedPassword);
+        await prisma.integrationCredentials.update({
+          where: { userId },
+          data: { arubaPassword: encryptedPassword }
+        });
+        console.log(`[IntegrationCredentials] ✓ Password migrated to encrypted format for user: ${userId}`);
+      }
 
       return {
         id: credentials.id,
