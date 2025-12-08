@@ -433,10 +433,194 @@ class AuthController {
           });
         }
 
-        // Dopo il salvataggio, redireziona direttamente a backToUrl
+        // Dopo il salvataggio, mostra pagina di successo con redirect automatico
         console.log('[AuthController] Form backToUrl:', backToUrl);
-        console.log('[AuthController] Redirecting to:', backToUrl);
-        return res.redirect(backToUrl);
+        console.log('[AuthController] Credentials saved successfully, showing success page');
+
+        const successHtml = `
+          <!DOCTYPE html>
+          <html lang="it">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Credenziali Salvate</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+              }
+              .container {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 500px;
+                width: 100%;
+                padding: 50px 40px;
+                text-align: center;
+                animation: slideIn 0.4s ease-out;
+              }
+              @keyframes slideIn {
+                from {
+                  opacity: 0;
+                  transform: translateY(-20px);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+              .success-icon {
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 30px;
+                background: #e8f5e9;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 40px;
+                animation: checkmark 0.6s ease-in-out;
+              }
+              @keyframes checkmark {
+                0% {
+                  transform: scale(0);
+                  opacity: 0;
+                }
+                50% {
+                  transform: scale(1.2);
+                }
+                100% {
+                  transform: scale(1);
+                  opacity: 1;
+                }
+              }
+              h1 {
+                color: #2e7d32;
+                margin-bottom: 15px;
+                font-size: 28px;
+              }
+              p {
+                color: #666;
+                margin-bottom: 20px;
+                font-size: 16px;
+                line-height: 1.6;
+              }
+              .success-box {
+                background: #e8f5e9;
+                border-left: 4px solid #2e7d32;
+                padding: 20px;
+                margin: 30px 0;
+                border-radius: 4px;
+                font-size: 14px;
+                color: #555;
+              }
+              .success-box strong {
+                display: block;
+                margin-bottom: 10px;
+                color: #2e7d32;
+                font-size: 16px;
+              }
+              .redirect-info {
+                background: #f5f5f5;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 20px 0;
+                font-size: 14px;
+                color: #666;
+              }
+              .countdown {
+                font-size: 24px;
+                font-weight: bold;
+                color: #667eea;
+                margin: 10px 0;
+              }
+              .button {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 14px 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 600;
+                border: none;
+                cursor: pointer;
+                transition: all 0.3s;
+                font-size: 16px;
+              }
+              .button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+              }
+              .loader {
+                width: 40px;
+                height: 40px;
+                margin: 20px auto;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #667eea;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+              }
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success-icon">✓</div>
+              <h1>Credenziali Salvate con Successo!</h1>
+              <p>Le tue credenziali Aruba sono state configurate e salvate in modo sicuro.</p>
+
+              <div class="success-box">
+                <strong>✓ Configurazione completata</strong>
+                Le credenziali sono state crittografate e memorizzate.<br>
+                Ora puoi utilizzare l'integrazione per inviare email tramite Aruba.
+              </div>
+
+              <div class="redirect-info">
+                <div>Verrai reindirizzato automaticamente a Monday.com tra:</div>
+                <div class="countdown" id="countdown">3</div>
+                <div class="loader"></div>
+              </div>
+
+              <a href="${backToUrl}" class="button">Torna Subito a Monday.com</a>
+            </div>
+
+            <script>
+              let seconds = 3;
+              const countdownElement = document.getElementById('countdown');
+              const backToUrl = '${backToUrl}';
+
+              const interval = setInterval(() => {
+                seconds--;
+                countdownElement.textContent = seconds;
+
+                if (seconds <= 0) {
+                  clearInterval(interval);
+                  window.location.href = backToUrl;
+                }
+              }, 1000);
+
+              // Permetti di cliccare sul pulsante per tornare subito
+              document.querySelector('.button').addEventListener('click', (e) => {
+                e.preventDefault();
+                clearInterval(interval);
+                window.location.href = backToUrl;
+              });
+            </script>
+          </body>
+          </html>
+        `;
+
+        return res.status(200).send(successHtml);
 
       } catch (error) {
         if (error.code === 'P2002' || error.message.includes('UNIQUE constraint failed')) {
